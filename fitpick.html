@@ -1,0 +1,2043 @@
+<!doctype html>
+<html lang="en" data-theme="dark">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+<title>FitPick — Your AI Stylist</title>
+<meta name="description" content="FitPick: an AI-styled digital closet. Catalog your wardrobe and get outfit suggestions scored on color, occasion, style, formality and weather." />
+<link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>👕</text></svg>">
+<style>
+/* ============================= Design tokens ============================= */
+:root, [data-theme="dark"]{
+  --bg:#08080d; --surface:#101018; --surface2:#1a1a25; --surface3:#22222f;
+  --fg:#f4f4f7; --muted:#a0a0ae; --faint:#676774;
+  --line:rgba(255,255,255,.075); --line-strong:rgba(255,255,255,.14);
+  --accent:#8b7cf6; --accent2:#c084fc;
+  --danger:#f87171; --success:#34d399; --warn:#fbbf24;
+  color-scheme:dark;
+}
+[data-theme="light"]{
+  --bg:#f3f3f8; --surface:#ffffff; --surface2:#eceef4; --surface3:#e2e4ee;
+  --fg:#14141c; --muted:#5b5b6b; --faint:#9a9aa9;
+  --line:rgba(18,18,32,.09); --line-strong:rgba(18,18,32,.16);
+  --accent:#6d5cf0; --accent2:#a855f7;
+  --danger:#dc2626; --success:#0d9d6c; --warn:#b45309;
+  color-scheme:light;
+}
+*{box-sizing:border-box;}
+html{-webkit-tap-highlight-color:transparent; scroll-padding-top:env(safe-area-inset-top,0px);}
+html,body{height:100%;}
+body{
+  margin:0; background:var(--bg); color:var(--fg);
+  font-family:'Inter',ui-sans-serif,system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
+  -webkit-font-smoothing:antialiased; text-rendering:optimizeLegibility; min-height:100dvh;
+  padding-top:env(safe-area-inset-top,0px); padding-bottom:env(safe-area-inset-bottom,0px);
+}
+body::before{
+  content:""; position:fixed; inset:0; pointer-events:none; z-index:0;
+  background:
+    radial-gradient(60% 40% at 15% -10%, color-mix(in oklab, var(--accent) 9%, transparent), transparent 70%),
+    radial-gradient(50% 35% at 95% 0%, color-mix(in oklab, var(--accent2) 7%, transparent), transparent 70%);
+}
+::selection{ background:color-mix(in oklab, var(--accent) 40%, transparent); }
+*:focus-visible{ outline:2px solid color-mix(in oklab, var(--accent) 70%, transparent); outline-offset:2px; }
+a{ color:inherit; text-decoration:none; }
+button{ font:inherit; color:inherit; }
+img{ display:block; }
+h1,h2,h3,p{ margin:0; }
+
+.gradient-accent{ background:linear-gradient(135deg, var(--accent), var(--accent2)); }
+.text-gradient{
+  background:linear-gradient(135deg, var(--accent), var(--accent2));
+  -webkit-background-clip:text; background-clip:text; color:transparent;
+}
+
+/* ============================= Layout shell ============================= */
+#app{ position:relative; z-index:10; }
+.rail{
+  position:fixed; inset-block:0; left:0; z-index:40; width:84px;
+  display:none; flex-direction:column; align-items:center;
+  border-right:1px solid var(--line); background:color-mix(in oklab, var(--bg) 60%, transparent);
+  backdrop-filter:blur(20px); padding:24px 0;
+}
+.rail-logo{ display:flex; align-items:center; justify-content:center; }
+.rail-nav{ margin-top:40px; display:flex; flex-direction:column; gap:6px; }
+.rail-item{
+  width:64px; height:64px; border-radius:18px; display:flex; flex-direction:column;
+  align-items:center; justify-content:center; gap:4px; color:var(--muted);
+  transition:all .2s ease; cursor:pointer; border:0; background:transparent;
+}
+.rail-item:hover{ background:var(--surface2); color:var(--fg); }
+.rail-item.active{ background:linear-gradient(135deg, var(--accent), var(--accent2)); color:#fff; box-shadow:0 10px 24px -8px color-mix(in oklab, var(--accent) 55%, transparent); }
+.rail-item span{ font-size:10px; font-weight:600; }
+.rail-bottom{ margin-top:auto; }
+
+.topbar{
+  position:sticky; top:0; z-index:40; border-bottom:1px solid var(--line);
+  background:color-mix(in oklab, var(--bg) 70%, transparent); backdrop-filter:blur(20px);
+}
+.topbar-inner{ display:flex; align-items:center; justify-content:space-between; height:56px; padding:0 20px; }
+.logo{ display:flex; align-items:center; gap:10px; font-weight:800; font-size:17px; letter-spacing:-.01em; }
+.logo .mark{ width:34px; height:34px; border-radius:11px; display:grid; place-items:center; color:#fff; box-shadow:0 8px 18px -6px color-mix(in oklab, var(--accent) 60%, transparent); }
+
+main{ position:relative; z-index:10; }
+.main-inner{ margin:0 auto; width:100%; max-width:720px; padding:20px 18px 130px; }
+@media (min-width:768px){
+  .rail{ display:flex; }
+  .topbar{ display:none; }
+  main{ padding-left:84px; }
+  .main-inner{ max-width:900px; padding:36px 40px 56px; }
+}
+
+.bottomnav{ position:fixed; inset-inline:16px; bottom:calc(16px + env(safe-area-inset-bottom,0px)); z-index:40; }
+@media (min-width:768px){ .bottomnav{ display:none; } }
+.bottomnav-inner{
+  display:flex; align-items:stretch; justify-content:space-between; padding:6px;
+  border-radius:28px; background:color-mix(in oklab, var(--surface) 68%, transparent);
+  backdrop-filter:blur(22px) saturate(160%); border:1px solid var(--line);
+  box-shadow:0 20px 45px -12px rgba(0,0,0,.4);
+}
+.bn-item{
+  flex:1; min-width:56px; display:flex; flex-direction:column; align-items:center; justify-content:center;
+  gap:2px; padding:8px 0; border-radius:16px; color:var(--muted); border:0; background:transparent; cursor:pointer;
+}
+.bn-item.active{ color:var(--accent); }
+.bn-item span{ font-size:10px; font-weight:600; }
+.bn-item.accent{
+  flex:0 0 56px; margin-top:-24px; height:56px; border-radius:20px; color:#fff;
+  background:linear-gradient(135deg, var(--accent), var(--accent2));
+  box-shadow:0 14px 30px -8px color-mix(in oklab, var(--accent) 65%, transparent);
+  display:flex; align-items:center; justify-content:center;
+}
+
+/* ============================= Primitives ============================= */
+.card{ background:var(--surface); border:1px solid var(--line); border-radius:22px; padding:20px; }
+.card.pad-0{ padding:0; }
+.section-title{ display:flex; align-items:center; justify-content:space-between; margin-bottom:10px; }
+.section-title h2{ font-size:13px; font-weight:700; color:var(--muted); text-transform:none; letter-spacing:.01em; }
+
+.btn{
+  display:inline-flex; align-items:center; justify-content:center; gap:8px; cursor:pointer;
+  border-radius:14px; border:1px solid transparent; font-weight:700; font-size:14px;
+  padding:11px 18px; transition:transform .12s ease, opacity .12s ease, background .15s ease; white-space:nowrap;
+}
+.btn:active{ transform:scale(.97); }
+.btn:disabled{ opacity:.55; cursor:not-allowed; transform:none; }
+.btn-primary{ background:linear-gradient(135deg, var(--accent), var(--accent2)); color:#fff; box-shadow:0 10px 24px -8px color-mix(in oklab, var(--accent) 55%, transparent); }
+.btn-secondary{ background:var(--surface2); color:var(--fg); border-color:var(--line-strong); }
+.btn-ghost{ background:transparent; color:var(--muted); }
+.btn-ghost:hover{ color:var(--fg); }
+.btn-danger{ background:color-mix(in oklab, var(--danger) 14%, transparent); color:var(--danger); }
+.btn-lg{ padding:14px 20px; font-size:15px; border-radius:16px; }
+.btn-sm{ padding:7px 12px; font-size:12.5px; border-radius:11px; }
+.btn-block{ width:100%; }
+.btn-icon{ width:40px; height:40px; padding:0; border-radius:50%; }
+
+.chip{
+  display:inline-flex; align-items:center; gap:6px; padding:9px 14px; border-radius:999px;
+  border:1px solid var(--line); background:var(--surface); color:var(--muted); font-size:13px;
+  font-weight:600; cursor:pointer; white-space:nowrap; transition:all .15s ease; user-select:none;
+}
+.chip:hover{ border-color:color-mix(in oklab, var(--accent) 40%, transparent); color:var(--fg); }
+.chip.selected{ border-color:transparent; background:linear-gradient(135deg, var(--accent), var(--accent2)); color:#fff; box-shadow:0 8px 18px -6px color-mix(in oklab, var(--accent) 50%, transparent); }
+.chip.small{ padding:6px 11px; font-size:12px; }
+
+.badge{ display:inline-flex; align-items:center; gap:5px; padding:5px 10px; border-radius:999px; font-size:11.5px; font-weight:700; }
+.badge-success{ background:color-mix(in oklab, var(--success) 16%, transparent); color:var(--success); }
+.badge-accent{ background:color-mix(in oklab, var(--accent) 18%, transparent); color:var(--accent); }
+.badge-neutral{ background:var(--surface2); color:var(--muted); }
+.badge-warn{ background:color-mix(in oklab, var(--warn) 18%, transparent); color:var(--warn); }
+.badge-danger{ background:color-mix(in oklab, var(--danger) 16%, transparent); color:var(--danger); }
+
+label.field-label{ display:block; font-size:12.5px; font-weight:700; color:var(--muted); margin:0 0 7px 2px; }
+.input, select.input, textarea.input{
+  width:100%; background:var(--surface2); border:1px solid var(--line-strong); color:var(--fg);
+  border-radius:13px; padding:11px 13px; font-size:14.5px; font-family:inherit;
+}
+textarea.input{ resize:vertical; min-height:74px; }
+.input:focus{ border-color:var(--accent); }
+.field{ margin-bottom:16px; }
+.hint{ font-size:12px; color:var(--faint); margin-top:6px; }
+
+.swatch-row{ display:flex; flex-wrap:wrap; gap:9px; }
+.swatch{
+  width:34px; height:34px; border-radius:50%; border:2px solid var(--line-strong); cursor:pointer;
+  display:grid; place-items:center; transition:transform .12s ease;
+}
+.swatch:hover{ transform:scale(1.08); }
+.swatch.selected{ border-color:var(--fg); box-shadow:0 0 0 2px var(--bg), 0 0 0 4px var(--accent); }
+.swatch.selected::after{ content:"✓"; font-size:13px; font-weight:900; color:#fff; text-shadow:0 1px 2px rgba(0,0,0,.5); }
+
+.skel{ border-radius:20px; background:linear-gradient(100deg, var(--surface2) 30%, var(--surface3) 45%, var(--surface2) 60%); background-size:200% 100%; animation:skel 1.3s ease-in-out infinite; }
+@keyframes skel{ from{background-position:150% 0;} to{background-position:-50% 0;} }
+
+.empty{ text-align:center; padding:48px 20px; }
+.empty .ico{ width:64px; height:64px; margin:0 auto 16px; border-radius:20px; background:var(--surface2); display:grid; place-items:center; color:var(--faint); }
+.empty h3{ font-size:16px; font-weight:800; margin-bottom:6px; }
+.empty p{ font-size:13.5px; color:var(--muted); max-width:320px; margin:0 auto 18px; line-height:1.55; }
+
+.grid-cats{ display:grid; grid-template-columns:repeat(3,1fr); gap:9px; }
+@media (min-width:480px){ .grid-cats{ grid-template-columns:repeat(4,1fr);} }
+.cat-btn{
+  display:flex; flex-direction:column; align-items:center; gap:7px; padding:14px 8px;
+  border-radius:18px; border:1px solid var(--line); background:var(--surface); color:var(--muted);
+  cursor:pointer; transition:all .15s ease;
+}
+.cat-btn.active{ border-color:transparent; background:linear-gradient(135deg, var(--accent), var(--accent2)); color:#fff; box-shadow:0 10px 22px -8px color-mix(in oklab, var(--accent) 50%, transparent); }
+.cat-btn span{ font-size:11.5px; font-weight:700; }
+
+.scrollx{ display:flex; gap:8px; overflow-x:auto; padding-bottom:2px; scrollbar-width:none; }
+.scrollx::-webkit-scrollbar{ display:none; }
+
+/* closet grid */
+.item-grid{ display:grid; grid-template-columns:repeat(2,1fr); gap:12px; }
+@media (min-width:560px){ .item-grid{ grid-template-columns:repeat(3,1fr);} }
+@media (min-width:900px){ .item-grid{ grid-template-columns:repeat(4,1fr);} }
+.item-tile{ cursor:pointer; }
+.item-thumb{ position:relative; aspect-ratio:3/4; border-radius:18px; overflow:hidden; background:var(--surface2); border:1px solid var(--line); }
+.item-thumb img{ width:100%; height:100%; object-fit:cover; }
+.item-fav{ position:absolute; top:8px; right:8px; width:28px; height:28px; border-radius:50%; background:rgba(10,10,16,.55); backdrop-filter:blur(6px); display:grid; place-items:center; color:#fff; }
+.item-status{ position:absolute; bottom:8px; left:8px; }
+.item-tile p.name{ margin-top:8px; font-size:12.5px; font-weight:700; }
+.item-tile p.sub{ font-size:11px; color:var(--faint); margin-top:1px; }
+
+/* outfit visual */
+.outfit-visual{ display:flex; gap:9px; }
+.outfit-slot{ min-width:0; flex:1; }
+.outfit-slot .thumb{ aspect-ratio:3/4; border-radius:16px; overflow:hidden; background:var(--surface2); border:1px solid var(--line); }
+.outfit-slot .thumb img{ width:100%; height:100%; object-fit:cover; }
+.outfit-slot p{ margin-top:6px; font-size:10.5px; font-weight:600; color:var(--muted); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.thumbstrip{ display:flex; }
+.thumbstrip .t{ width:42px; height:42px; border-radius:12px; overflow:hidden; border:2px solid var(--surface); background:var(--surface2); margin-left:-10px; }
+.thumbstrip .t:first-child{ margin-left:0; }
+.thumbstrip img{ width:100%; height:100%; object-fit:cover; }
+
+.divider{ height:1px; background:var(--line); margin:18px 0; border:0; }
+
+/* sheet / modal */
+.overlay{ position:fixed; inset:0; z-index:100; background:rgba(6,6,10,.6); backdrop-filter:blur(3px); display:flex; align-items:flex-end; justify-content:center; }
+@media (min-width:640px){ .overlay{ align-items:center; } }
+.sheet{ width:100%; max-width:520px; max-height:88dvh; overflow-y:auto; background:var(--surface); border:1px solid var(--line); border-radius:26px 26px 0 0; padding:22px 20px calc(22px + env(safe-area-inset-bottom,0px)); animation:sheetup .22s ease; }
+@media (min-width:640px){ .sheet{ border-radius:24px; margin-bottom:24px; } }
+@keyframes sheetup{ from{ transform:translateY(24px); opacity:0;} to{ transform:translateY(0); opacity:1;} }
+.sheet-handle{ width:36px; height:4px; border-radius:99px; background:var(--line-strong); margin:0 auto 16px; }
+.sheet-head{ display:flex; align-items:center; justify-content:space-between; margin-bottom:16px; }
+.sheet-head h3{ font-size:17px; font-weight:800; }
+
+/* toast */
+#toasts{ position:fixed; left:50%; transform:translateX(-50%); bottom:calc(96px + env(safe-area-inset-bottom,0px)); z-index:200; display:flex; flex-direction:column; gap:8px; align-items:center; pointer-events:none; }
+@media (min-width:768px){ #toasts{ bottom:32px; } }
+.toast{ pointer-events:auto; background:var(--fg); color:var(--bg); font-size:13.5px; font-weight:600; padding:11px 18px; border-radius:14px; box-shadow:0 14px 30px -8px rgba(0,0,0,.4); animation:toastin .2s ease; }
+@keyframes toastin{ from{opacity:0; transform:translateY(8px);} to{opacity:1; transform:translateY(0);} }
+
+/* score ring / breakdown bar */
+.scorebar{ height:6px; border-radius:99px; background:var(--surface2); overflow:hidden; }
+.scorebar > div{ height:100%; border-radius:99px; background:linear-gradient(90deg, var(--accent), var(--accent2)); }
+
+/* animations */
+.fade-up{ animation:fadeup .28s ease; }
+@keyframes fadeup{ from{ opacity:0; transform:translateY(6px);} to{ opacity:1; transform:translateY(0);} }
+@media (prefers-reduced-motion:reduce){ *{ animation-duration:.001s !important; transition-duration:.001s !important; } }
+
+.stat-grid{ display:grid; grid-template-columns:repeat(3,1fr); gap:10px; }
+.stat-card{ background:var(--surface2); border-radius:16px; padding:14px 12px; text-align:center; }
+.stat-card .n{ font-size:20px; font-weight:800; }
+.stat-card .l{ font-size:10.5px; color:var(--muted); font-weight:600; margin-top:2px; }
+
+.row{ display:flex; align-items:center; gap:10px; }
+.between{ justify-content:space-between; }
+.wrap{ flex-wrap:wrap; }
+.grow{ flex:1; min-width:0; }
+.muted{ color:var(--muted); }
+.faint{ color:var(--faint); }
+.small{ font-size:12.5px; }
+.tiny{ font-size:11px; }
+.bold{ font-weight:700; }
+.mt-4{ margin-top:16px; } .mt-2{ margin-top:8px;} .mt-6{ margin-top:24px; }
+
+.icon{ display:inline-flex; }
+svg.i{ width:1em; height:1em; stroke:currentColor; fill:none; stroke-width:2; stroke-linecap:round; stroke-linejoin:round; }
+
+.avatar{ width:42px; height:42px; border-radius:14px; display:grid; place-items:center; color:#fff; font-weight:800; font-size:15px; }
+.camera-frame{ position:relative; width:100%; aspect-ratio:3/4; background:#000; border-radius:20px; overflow:hidden; }
+.camera-frame video, .camera-frame img{ width:100%; height:100%; object-fit:cover; }
+.dropzone{ border:1.5px dashed var(--line-strong); border-radius:20px; padding:32px 16px; text-align:center; cursor:pointer; background:var(--surface2); }
+.dropzone:hover{ border-color:var(--accent); }
+</style>
+</head>
+<body>
+<div id="app"></div>
+<div id="toasts"></div>
+<div id="sheet-root"></div>
+
+<script>
+"use strict";
+/* =========================================================================
+   FitPick — client-only AI wardrobe stylist
+   Ported from the FitPick Next.js product (taxonomy, color engine, outfit
+   scoring engine, explanations, insights) into a single-file app. All state
+   lives in localStorage; "AI analysis" is a deterministic on-device heuristic
+   driven by the photo's dominant color, exactly like the product's mock
+   provider — no network calls, no server.
+   ========================================================================= */
+
+/* ---------------------------------------------------------------------- *
+ * Icons — tiny inline SVG set (stroke, currentColor)
+ * ---------------------------------------------------------------------- */
+const ICONS = {
+  home:'<path d="M3 11.5 12 4l9 7.5"/><path d="M5 10v9a1 1 0 0 0 1 1h4v-6h4v6h4a1 1 0 0 0 1-1v-9"/>',
+  shirt:'<path d="M7 4 3 7l2 3 2-1.3V20a1 1 0 0 0 1 1h8a1 1 0 0 0 1-1V8.7L19 10l2-3-4-3-2 2H9L7 4Z"/>',
+  sparkles:'<path d="M12 3v3M12 18v3M3 12h3M18 12h3M5.6 5.6l2 2M16.4 16.4l2 2M18.4 5.6l-2 2M7.6 16.4l-2 2"/><path d="M12 8l1.3 3L16 12.5l-2.7 1.5L12 17l-1.3-3L8 12.5l2.7-1.5L12 8Z"/>',
+  layers:'<path d="m12 2 9 5-9 5-9-5 9-5Z"/><path d="m3 12 9 5 9-5"/><path d="m3 17 9 5 9-5"/>',
+  user:'<circle cx="12" cy="8" r="4"/><path d="M4 21c1.5-4.5 5-6.5 8-6.5s6.5 2 8 6.5"/>',
+  plus:'<path d="M12 5v14M5 12h14"/>',
+  wand:'<path d="m15 4 1.5 3L20 8.5 16.5 10 15 13l-1.5-3L10 8.5 13.5 7 15 4Z"/><path d="m4 20 8-8"/><path d="M4.5 15.5 6 20l4.5 1.5L9 17l-1.5-4.5L4.5 15.5Z" opacity="0"/>',
+  dice:'<rect x="3" y="3" width="18" height="18" rx="4"/><circle cx="8" cy="8" r="1.1" fill="currentColor" stroke="none"/><circle cx="16" cy="8" r="1.1" fill="currentColor" stroke="none"/><circle cx="8" cy="16" r="1.1" fill="currentColor" stroke="none"/><circle cx="16" cy="16" r="1.1" fill="currentColor" stroke="none"/><circle cx="12" cy="12" r="1.1" fill="currentColor" stroke="none"/>',
+  refresh:'<path d="M21 12a9 9 0 1 1-2.6-6.4"/><path d="M21 4v5h-5"/>',
+  heart:'<path d="M12 20.5s-7.5-4.6-10-9.4C.4 7.6 2.4 4 6 4c2.1 0 3.6 1.2 6 3.6C14.4 5.2 15.9 4 18 4c3.6 0 5.6 3.6 4 7.1-2.5 4.8-10 9.4-10 9.4Z"/>',
+  heartFill:'<path d="M12 20.5s-7.5-4.6-10-9.4C.4 7.6 2.4 4 6 4c2.1 0 3.6 1.2 6 3.6C14.4 5.2 15.9 4 18 4c3.6 0 5.6 3.6 4 7.1-2.5 4.8-10 9.4-10 9.4Z" fill="currentColor"/>',
+  camera:'<path d="M4 8h3l1.5-2h7L17 8h3a1 1 0 0 1 1 1v9a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V9a1 1 0 0 1 1-1Z"/><circle cx="12" cy="13.5" r="3.4"/>',
+  upload:'<path d="M12 16V4M8 8l4-4 4 4"/><path d="M4 16v3a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-3"/>',
+  x:'<path d="M6 6l12 12M18 6 6 18"/>',
+  check:'<path d="M5 12.5 10 17 19 7"/>',
+  chevDown:'<path d="m6 9 6 6 6-6"/>',
+  chevRight:'<path d="m9 6 6 6-6 6"/>',
+  trash:'<path d="M4 7h16"/><path d="M9 7V5a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/><path d="M6 7l1 13a1 1 0 0 0 1 1h8a1 1 0 0 0 1-1l1-13"/>',
+  droplet:'<path d="M12 3s6 6.5 6 11a6 6 0 1 1-12 0c0-4.5 6-11 6-11Z"/>',
+  clock:'<circle cx="12" cy="12" r="9"/><path d="M12 7v5l3.5 2"/>',
+  star:'<path d="m12 3 2.7 5.9 6.3.6-4.8 4.3 1.4 6.2L12 16.9 6.4 20l1.4-6.2L3 9.5l6.3-.6L12 3Z"/>',
+  palette:'<circle cx="12" cy="12" r="9"/><circle cx="8.5" cy="10" r="1.2" fill="currentColor" stroke="none"/><circle cx="12" cy="7.5" r="1.2" fill="currentColor" stroke="none"/><circle cx="15.5" cy="10" r="1.2" fill="currentColor" stroke="none"/><circle cx="10" cy="15" r="1.2" fill="currentColor" stroke="none"/>',
+  sun:'<circle cx="12" cy="12" r="4.2"/><path d="M12 2v2.4M12 19.6V22M4.9 4.9l1.7 1.7M17.4 17.4l1.7 1.7M2 12h2.4M19.6 12H22M4.9 19.1l1.7-1.7M17.4 6.6l1.7-1.7"/>',
+  moon:'<path d="M20 14.5A8.5 8.5 0 0 1 9.5 4a8.5 8.5 0 1 0 10.5 10.5Z"/>',
+  edit:'<path d="M4 20h4l10.5-10.5a2.1 2.1 0 0 0-3-3L5 17v3Z"/>',
+  arrowRight:'<path d="M4 12h16M14 6l6 6-6 6"/>',
+  info:'<circle cx="12" cy="12" r="9"/><path d="M12 8v.01M11.5 11h1v6h-1"/>',
+  bookmark:'<path d="M6 3h12a1 1 0 0 1 1 1v17l-7-4-7 4V4a1 1 0 0 1 1-1Z"/>',
+  thumbsDown:'<path d="M17 14V4M20 4h-2.7a2 2 0 0 0-1 .3l-4 2.3a2 2 0 0 1-1 .3H8v9h2l2.5 4a1.7 1.7 0 0 0 3-1.3L15 15h4a2 2 0 0 0 2-2v-6a2 2 0 0 0-1-1.7Z"/><path d="M8 6.6V16"/>',
+  download:'<path d="M12 4v11M8 11l4 4 4-4"/><path d="M4 17v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-2"/>',
+  pants:'<path d="M8 3h8l1 18h-4l-1-12-1 12H7L8 3Z"/>',
+  shoe:'<path d="M3 19c0-3 2-5 5-7 2-1.5 3-3 4-5l6 2-1 4 5 2c2 .8 3 2.2 3 4v0H3Z"/>',
+  watch2:'<circle cx="12" cy="12" r="5.5"/><path d="M9.5 3h5l.6 4h-6.2l.6-4Z"/><path d="M9.5 21h5l.6-4h-6.2l.6 4Z"/>',
+  search:'<circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/>',
+  briefcase:'<rect x="3" y="8" width="18" height="12" rx="2"/><path d="M8 8V6a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/><path d="M3 13h18"/>',
+  plane:'<path d="M12 2 9 9 2 11l7 2 3 9 2-9 7-2-7-2-2-7Z"/>',
+  glass:'<path d="M7 3h10l-1.5 9a3.5 3.5 0 0 1-7 0L7 3Z"/><path d="M12 15v6M9 21h6"/>',
+  ring:'<circle cx="12" cy="15" r="5.5"/><path d="m9 10 3-7 3 7"/>',
+  dumbbell:'<path d="M4 9v6M2 10v4M20 9v6M22 10v4M7 12h10"/><path d="M6 8v8M18 8v8" />',
+};
+function icon(name, cls){ return `<svg class="i ${cls||''}" viewBox="0 0 24 24">${ICONS[name]||''}</svg>`; }
+
+/* ---------------------------------------------------------------------- *
+ * Small utils
+ * ---------------------------------------------------------------------- */
+function esc(s){ return String(s??'').replace(/[&<>"']/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m])); }
+function cap(s){ return s && s.length ? s[0].toUpperCase()+s.slice(1) : s; }
+function uid(){ return 'id-' + Math.random().toString(36).slice(2,10) + Date.now().toString(36); }
+function clamp(n,min,max){ return Math.min(max, Math.max(min,n)); }
+function round(n){ return Math.round(n*10)/10; }
+function hashString(input){ let h=2166136261; for(let i=0;i<input.length;i++){ h ^= input.charCodeAt(i); h = Math.imul(h, 16777619);} return h>>>0; }
+function mulberry32(seed){ let a = seed>>>0; return function(){ a|=0; a=(a+0x6d2b79f5)|0; let t=Math.imul(a ^ (a>>>15), 1|a); t=(t+Math.imul(t ^ (t>>>7), 61|t)) ^ t; return ((t ^ (t>>>14))>>>0)/4294967296; }; }
+function seededRng(seedText){ return mulberry32(hashString(seedText)); }
+function pickSeeded(rng, arr){ return arr[Math.floor(rng()*arr.length)]; }
+function dateISO(d){ const y=d.getFullYear(), m=String(d.getMonth()+1).padStart(2,'0'), day=String(d.getDate()).padStart(2,'0'); return `${y}-${m}-${day}`; }
+function dayLabel(iso){ const today=dateISO(new Date()); const yest=dateISO(new Date(Date.now()-864e5)); if(iso===today) return 'Today'; if(iso===yest) return 'Yesterday'; const d=new Date(iso+'T12:00:00'); return d.toLocaleDateString(undefined,{weekday:'short',month:'long',day:'numeric'}); }
+function timeAgo(iso){ if(!iso) return 'Never'; const then=new Date(iso).getTime(); const diff=Date.now()-then; const days=Math.floor(diff/864e5); if(days<=0) return 'Today'; if(days===1) return 'Yesterday'; if(days<30) return `${days} days ago`; const months=Math.floor(days/30); return months===1?'1 month ago':`${months} months ago`; }
+function greetingFor(date=new Date()){ const h=date.getHours(); if(h<5) return 'Up late'; if(h<12) return 'Good morning'; if(h<17) return 'Good afternoon'; return 'Good evening'; }
+function matchLabel(score){ if(score>=88) return 'Excellent Match'; if(score>=76) return 'Great Match'; if(score>=64) return 'Good Match'; return 'Experimental'; }
+function cn(...p){ return p.filter(Boolean).join(' '); }
+
+/* ---------------------------------------------------------------------- *
+ * Taxonomy — single source of truth
+ * ---------------------------------------------------------------------- */
+const CATEGORIES = [
+  { id:'tops', label:'Tops', icon:'shirt', sub:['t-shirt','shirt','polo','hoodie','sweater','tank top','henley','turtleneck','sweatshirt','blouse'] },
+  { id:'bottoms', label:'Bottoms', icon:'pants', sub:['jeans','chinos','trousers','shorts','joggers','skirt','cargo pants'] },
+  { id:'outerwear', label:'Outerwear', icon:'shirt', sub:['jacket','blazer','coat','hoodie','cardigan','overshirt','vest','parka','trench'] },
+  { id:'footwear', label:'Footwear', icon:'shoe', sub:['sneakers','formal shoes','boots','sandals','loafers','derbies','trainers','heels'] },
+  { id:'accessories', label:'Accessories', icon:'watch2', sub:['watch','belt','sunglasses','cap','tie','jewelry','scarf','bag'] },
+];
+const CATEGORY_IDS = CATEGORIES.map(c=>c.id);
+function categoryLabel(id){ return (CATEGORIES.find(c=>c.id===id)||{}).label || id; }
+function subcategoriesOf(cat){ return (CATEGORIES.find(c=>c.id===cat)||{}).sub || []; }
+
+const OCCASION_IDS = ['casual','office','date','dinner','party','wedding','formal','travel','gym'];
+const HOME_OCCASIONS = [{id:'office',label:'Office'},{id:'casual',label:'Casual'},{id:'date',label:'Date'},{id:'dinner',label:'Dinner'},{id:'party',label:'Party'},{id:'gym',label:'Gym'},{id:'travel',label:'Travel'},{id:'formal',label:'Formal'}];
+const DRESS_ME_OCCASIONS = [{id:'office',label:'Work'},{id:'casual',label:'Casual'},{id:'date',label:'Date'},{id:'dinner',label:'Dinner'},{id:'party',label:'Party'},{id:'travel',label:'Travel'},{id:'formal',label:'Formal'}];
+const STYLE_IDS = ['minimal','classic','smart casual','streetwear','formal','relaxed','sporty','bohemian'];
+const SEASON_IDS = ['spring','summer','fall','winter'];
+const PATTERN_IDS = ['solid','striped','checked','plaid','graphic','floral','camo','colorblock','textured'];
+const STATUS_IDS = [{id:'clean',label:'Clean'},{id:'worn',label:'Worn'},{id:'laundry',label:'Laundry'},{id:'dry_cleaning',label:'Dry Cleaning'},{id:'unavailable',label:'Unavailable'}];
+const FIT_IDS = ['slim','regular','relaxed','oversized'];
+const MATERIAL_IDS = ['cotton','cotton blend','linen','denim','wool','cashmere','leather','suede','silk','polyester','nylon','fleece','knit','canvas'];
+const FORMALITY_LEVELS = [{level:1,label:'Athletic'},{level:2,label:'Very Casual'},{level:3,label:'Casual'},{level:4,label:'Smart Casual'},{level:5,label:'Business Casual'},{level:6,label:'Formal'}];
+function formalityLabel(level){ const f=FORMALITY_LEVELS.find(f=>f.level===level); return f?f.label:'Casual'; }
+const FORMALITY_BY_SUB = { 'tank top':2,'t-shirt':2,hoodie:2,sweatshirt:2,joggers:1,shorts:2, sneakers:3,trainers:1,sandals:2,cap:2,'cargo pants':2, jeans:3,polo:4,henley:3,cardigan:4,sweater:4,overshirt:3,boots:4, shirt:5,blouse:5,turtleneck:5,chinos:4,skirt:4,loafers:5,jacket:4, parka:3,vest:4,scarf:3,sunglasses:3,bag:3,jewelry:4,watch:4,belt:4, trousers:6,blazer:6,coat:5,trench:5,'formal shoes':6,derbies:6, heels:6,tie:6 };
+function defaultFormality(sub, cat){ const d=FORMALITY_BY_SUB[(sub||'').toLowerCase()]; if(d) return d; return cat==='accessories'?4:3; }
+const OCCASION_FORMALITY = { gym:1, casual:3, travel:3, party:4, date:4, dinner:5, office:5, work:5, wedding:6, formal:6 };
+const LOOKS = [
+  { id:'relaxed', label:'Relaxed', styles:['relaxed','casual'], formalityShift:-1 },
+  { id:'sharp', label:'Sharp', styles:['smart casual','formal'], formalityShift:1 },
+  { id:'minimal', label:'Minimal', styles:['minimal'], formalityShift:0 },
+  { id:'classic', label:'Classic', styles:['classic'], formalityShift:0 },
+  { id:'trendy', label:'Trendy', styles:['streetwear','minimal'], formalityShift:0 },
+];
+function lookById(id){ return LOOKS.find(l=>l.id===id); }
+const WEATHER_IDS = [{id:'hot',label:'Hot'},{id:'warm',label:'Warm'},{id:'cool',label:'Cool'},{id:'cold',label:'Cold'}];
+const WEATHER_TO_SEASONS = { hot:['summer'], warm:['spring','summer'], cool:['spring','fall'], cold:['fall','winter'] };
+const REQUIRED_SLOTS = ['tops','bottoms','footwear'];
+const BLOCKED_STATUSES = ['laundry','dry_cleaning','unavailable'];
+
+/* ---------------------------------------------------------------------- *
+ * Color knowledge base
+ * ---------------------------------------------------------------------- */
+const COLORS = [
+  {id:'white',label:'White',hex:'#f4f4f2',family:'neutral'},{id:'black',label:'Black',hex:'#17171c',family:'neutral'},
+  {id:'grey',label:'Grey',hex:'#8b909a',family:'neutral'},{id:'charcoal',label:'Charcoal',hex:'#3c414b',family:'neutral'},
+  {id:'cream',label:'Cream',hex:'#efe6d2',family:'neutral'},{id:'beige',label:'Beige',hex:'#d8c4a3',family:'neutral'},
+  {id:'tan',label:'Tan',hex:'#b28a58',family:'earth'},{id:'brown',label:'Brown',hex:'#7a5238',family:'earth'},
+  {id:'navy',label:'Navy',hex:'#232c4d',family:'blue'},{id:'blue',label:'Blue',hex:'#3d6ca8',family:'blue'},
+  {id:'light blue',label:'Light Blue',hex:'#a5c8ea',family:'blue'},{id:'denim',label:'Denim',hex:'#4e6f9e',family:'blue'},
+  {id:'olive',label:'Olive',hex:'#6c7346',family:'green'},{id:'green',label:'Green',hex:'#3f7a53',family:'green'},
+  {id:'burgundy',label:'Burgundy',hex:'#70303f',family:'jewel'},{id:'red',label:'Red',hex:'#c04a4a',family:'warm'},
+  {id:'orange',label:'Orange',hex:'#d97f42',family:'warm'},{id:'yellow',label:'Yellow',hex:'#e2c568',family:'warm'},
+  {id:'pink',label:'Pink',hex:'#e2a8ba',family:'pastel'},{id:'purple',label:'Purple',hex:'#7c5ea8',family:'jewel'},
+  {id:'lavender',label:'Lavender',hex:'#b7a8dd',family:'pastel'},{id:'mint',label:'Mint',hex:'#a8d8c2',family:'pastel'},
+];
+const COLOR_IDS = COLORS.map(c=>c.id);
+const NEUTRALS = new Set(['white','black','grey','charcoal','cream','beige']);
+const HARMONY = {
+  white:['navy','blue','denim','black','grey','charcoal','beige','olive','tan','brown','burgundy','red','green','pink','light blue','lavender'],
+  black:['grey','charcoal','denim','olive','beige','white','burgundy','light blue','red','pink','cream','lavender'],
+  grey:['navy','blue','black','white','burgundy','pink','olive','denim','charcoal','light blue','lavender','yellow'],
+  charcoal:['white','grey','light blue','pink','cream','beige','burgundy','mint','lavender','denim'],
+  cream:['brown','tan','olive','navy','green','burgundy','denim','charcoal'],
+  beige:['navy','olive','white','brown','green','burgundy','black','denim','cream'],
+  tan:['navy','white','olive','green','cream','denim','burgundy','brown'],
+  brown:['cream','beige','tan','white','olive','green','burgundy','denim','light blue'],
+  navy:['white','grey','beige','cream','light blue','burgundy','tan','brown','pink','red','mint'],
+  blue:['white','grey','beige','cream','tan','brown','light blue','orange'],
+  'light blue':['white','navy','grey','charcoal','beige','tan','brown','navy'],
+  denim:['white','black','grey','olive','cream','burgundy','brown','tan','red','pink','charcoal'],
+  olive:['black','white','cream','beige','tan','brown','denim','navy','burgundy','orange'],
+  green:['cream','beige','tan','brown','white','navy','denim','grey'],
+  burgundy:['grey','charcoal','white','black','navy','beige','cream','tan','denim','olive'],
+  red:['white','black','grey','denim','navy','cream'], orange:['navy','cream','beige','brown','olive','white','grey'],
+  yellow:['grey','charcoal','navy','white','denim','olive'], pink:['grey','charcoal','white','navy','denim','black','cream'],
+  purple:['grey','charcoal','cream','beige','white','lavender'], lavender:['white','grey','charcoal','cream','purple','navy'],
+  mint:['white','grey','charcoal','navy','cream'],
+};
+const TENSION = { 'black|navy':52,'black|brown':58,'navy|brown':62,'orange|red':26,'pink|red':30,'green|red':34,'orange|pink':30,'orange|purple':28,'purple|yellow':36,'denim|light blue':48,'black|charcoal':60 };
+function tensionKey(a,b){ return [a,b].sort().join('|'); }
+function familyOf(id){ const c=COLORS.find(c=>c.id===id); return c?c.family:'neutral'; }
+function pairColorScore(aRaw,bRaw){
+  const a=(aRaw||'').toLowerCase(), b=(bRaw||'').toLowerCase();
+  if(a===b) return NEUTRALS.has(a)?86:72;
+  const tension = TENSION[tensionKey(a,b)];
+  if(tension!==undefined) return tension;
+  if((HARMONY[a]||[]).includes(b) || (HARMONY[b]||[]).includes(a)) return 95;
+  const aN=NEUTRALS.has(a), bN=NEUTRALS.has(b);
+  if(aN&&bN) return 88;
+  if(aN||bN){ const other=aN?b:a; const fam=familyOf(other); if(fam==='earth'||fam==='blue'||fam==='green'||fam==='jewel') return 84; if(fam==='pastel') return 78; return 72; }
+  const famA=familyOf(a), famB=familyOf(b);
+  if(famA===famB) return 55;
+  if(famA==='earth'||famB==='earth') return 70;
+  if((famA==='jewel'&&famB==='blue')||(famA==='blue'&&famB==='jewel')) return 66;
+  return 52;
+}
+function colorInfo(id){ return COLORS.find(c=>c.id===(id||'').toLowerCase()); }
+function colorHex(id){ if(!id) return '#8b909a'; const c=colorInfo(id); return c?c.hex:'#8b909a'; }
+function nearestColor(r,g,b){ let best='grey', bestDist=Infinity; for(const c of COLORS){ const hex=c.hex.replace('#',''); const cr=parseInt(hex.slice(0,2),16), cg=parseInt(hex.slice(2,4),16), cb=parseInt(hex.slice(4,6),16); const d=(cr-r)**2+(cg-g)**2+(cb-b)**2; if(d<bestDist){bestDist=d; best=c.id;} } return best; }
+
+/* ---------------------------------------------------------------------- *
+ * Palette analysis — reads an outfit's colors as a composition
+ * ---------------------------------------------------------------------- */
+function hexToHsl(hex){ const clean=hex.replace('#',''); const r=parseInt(clean.slice(0,2),16)/255, g=parseInt(clean.slice(2,4),16)/255, b=parseInt(clean.slice(4,6),16)/255; const max=Math.max(r,g,b), min=Math.min(r,g,b); const l=(max+min)/2; const d=max-min; if(d===0) return {h:0,s:0,l}; const s=l>0.5? d/(2-max-min) : d/(max+min); let h; if(max===r) h=((g-b)/d+(g<b?6:0))*60; else if(max===g) h=((b-r)/d+2)*60; else h=((r-g)/d+4)*60; return {h,s,l}; }
+const TRUE_NEUTRALS = new Set(['white','black','grey','charcoal']);
+const WARM_NEUTRALS = new Set(['cream','beige','tan']);
+const EARTH_TONES = new Set(['brown','tan','beige','olive','cream','burgundy']);
+function isNeutral(color){ const c=(color||'').toLowerCase(); if(TRUE_NEUTRALS.has(c)||WARM_NEUTRALS.has(c)) return true; const {s,l}=hexToHsl(colorHex(c)); return s<0.16 || l<0.12 || l>0.93; }
+function isQuasiNeutral(color){ return isNeutral(color) || (color||'').toLowerCase()==='denim'; }
+function hueDistance(a,b){ const d=Math.abs(a-b)%360; return d>180?360-d:d; }
+function describePalette(type, unique, chromatic){
+  const lead = unique.slice(0,2).join(' and ');
+  switch(type){
+    case 'neutral': return `${lead} form a clean neutral palette`;
+    case 'accented-neutral': return `${chromatic[0]} stands out against neutral tones`;
+    case 'earthy': return `${lead} create a warm, earthy palette`;
+    case 'monochrome': return `tonal ${lead} shades stay in one family`;
+    case 'analogous': return `${lead} sit close together on the color wheel`;
+    case 'complementary': return `${lead} contrast for a deliberate pop`;
+    case 'busy': return `several strong colors compete here`;
+    default: return `${lead} balance each other`;
+  }
+}
+function analyzePalette(ordered){
+  const colors = ordered.map(c=>(c||'').toLowerCase()).filter(Boolean);
+  if(!colors.length) return { score:70, type:'mixed', roles:[], neutralCount:0, accentCount:0, description:'' };
+  const roles = colors.map((color,i)=>({color, role: i===0?'base': i===1?'support':'accent'}));
+  const neutrals = colors.filter(isNeutral);
+  const chromatics = colors.filter(c=>!isQuasiNeutral(c));
+  const uniqueChromatic = [...new Set(chromatics)];
+  const hues = uniqueChromatic.map(c=>hexToHsl(colorHex(c)).h);
+  let pairSum=0, pairCount=0;
+  for(let i=0;i<colors.length;i++) for(let j=i+1;j<colors.length;j++){ pairSum+=pairColorScore(colors[i],colors[j]); pairCount++; }
+  const pairAvg = pairCount? pairSum/pairCount : 80;
+  let type='mixed', archetypeScore=74;
+  const uniqueAll=[...new Set(colors)];
+  if(uniqueChromatic.length===0){ type='neutral'; archetypeScore = uniqueAll.length===1?90:95; }
+  else if(uniqueChromatic.length===1){ const allEarthy = uniqueAll.every(c=>EARTH_TONES.has(c)||isNeutral(c)); type = allEarthy?'earthy':'accented-neutral'; archetypeScore=94; }
+  else {
+    const gaps=[]; for(let i=0;i<hues.length;i++) for(let k=i+1;k<hues.length;k++) gaps.push(hueDistance(hues[i],hues[k]));
+    const maxHueGap = gaps.length? Math.max(...gaps) : 0;
+    if(maxHueGap<=30){ type='monochrome'; archetypeScore=90; }
+    else if(maxHueGap<=60){ type='analogous'; archetypeScore=88; }
+    else if(maxHueGap>=145 && uniqueChromatic.length===2){
+      const accentIsChromatic = roles.filter(r=>r.role==='accent').some(r=>!isQuasiNeutral(r.color));
+      type='complementary'; archetypeScore = accentIsChromatic?84:76;
+    } else if(uniqueChromatic.length>=3){ type='busy'; archetypeScore=52; }
+    else { type='mixed'; archetypeScore=68; }
+  }
+  const neutralRatio = neutrals.length/colors.length;
+  const grounding = neutralRatio>=0.5? 4 : neutralRatio>=0.34? 2 : -3;
+  const score = Math.max(0, Math.min(100, 0.55*archetypeScore + 0.45*pairAvg + grounding));
+  return { score, type, roles, neutralCount:neutrals.length, accentCount:uniqueChromatic.length, description: describePalette(type, uniqueAll, uniqueChromatic) };
+}
+
+/* ---------------------------------------------------------------------- *
+ * "Why this outfit?" — plain-language explanations
+ * ---------------------------------------------------------------------- */
+const OCCASION_PHRASE = { casual:'an easy day out', office:'a day at work', date:'a date', dinner:'dinner', party:'a party', wedding:'a wedding', formal:'a formal event', travel:'travel days', gym:'the gym' };
+const WEATHER_PHRASE = { hot:'hot weather', warm:'warm weather', cool:'cooler weather', cold:'cold weather' };
+const TONE_BY_FORMALITY = { 1:'sporty', 2:'very relaxed', 3:'relaxed', 4:'polished but easy', 5:'sharp', 6:'formal' };
+function itemOf(items, slot){ const s=items.find(s=>s.slot===slot); return s?s.item:undefined; }
+function explainOutfit(ctx){
+  const { items, palette, breakdown, occasion, formality, weather } = ctx;
+  const shoes=itemOf(items,'footwear'), outer=itemOf(items,'outerwear'), accessory=itemOf(items,'accessory');
+  const first = palette.description ? cap(palette.description)+'.' : 'These pieces sit comfortably together.';
+  const tone = TONE_BY_FORMALITY[formality] || 'balanced';
+  const where = OCCASION_PHRASE[occasion] || 'the day ahead';
+  const anchor = shoes ? `The ${shoes.name.toLowerCase()} keep${shoes.name.endsWith('s')?'':'s'} it ${tone}` : `The overall feel is ${tone}`;
+  const second = `${anchor}, which suits ${where}.`;
+  let third='';
+  if(outer) third = ` The ${outer.name.toLowerCase()} adds a layer${weather?` for ${WEATHER_PHRASE[weather]||'the forecast'}`:''}.`;
+  else if(accessory) third = ` The ${accessory.name.toLowerCase()} finishes it off.`;
+  else if(weather) third = ` It should feel right in ${WEATHER_PHRASE[weather]||'today\u2019s weather'}.`;
+  const explanation = `${first} ${second}${third}`.trim();
+  const reasons=[];
+  reasons.push(`Colors: ${palette.description || 'balanced tones'}`);
+  reasons.push(`Dressed for: ${cap(occasion)} \u00b7 ${formalityLabel(formality)}`);
+  if(breakdown.style>=80) reasons.push('The pieces share a consistent style');
+  else if(breakdown.style<62) reasons.push('A slightly unexpected style mix');
+  if(weather) reasons.push(`Picked for ${WEATHER_PHRASE[weather]||weather}`);
+  if(breakdown.formality>=88) reasons.push('Formality is consistent head to toe');
+  else if(breakdown.formality<65) reasons.push('Mixes dressier and casual pieces');
+  if(ctx.favoriteNames.length) reasons.push(`Includes a favorite: ${ctx.favoriteNames.slice(0,2).join(', ')}`);
+  return { explanation, reasons };
+}
+
+/* ---------------------------------------------------------------------- *
+ * Outfit combination engine — never random: every candidate is scored on
+ * a weighted composite (color 25% / occasion 20% / style 20% / formality
+ * 15% / weather 10% / preference 10%) minus a recent-repeat penalty.
+ * ---------------------------------------------------------------------- */
+const CATEGORY_TO_SLOT = { tops:'top', bottoms:'bottom', outerwear:'outerwear', footwear:'footwear', accessories:'accessory' };
+const SLOT_ORDER = ['top','bottom','footwear','outerwear','accessory'];
+const WEIGHTS = { color:0.25, occasion:0.2, style:0.2, formality:0.15, weather:0.1, preference:0.1 };
+const DISPLAY_THRESHOLD = 55, SOFT_FLOOR = 46;
+function hasTag(list, value){ const v=(value||'').toLowerCase(); return (list||[]).some(x=>(x||'').toLowerCase()===v); }
+function availableItems(items){ return items.filter(i=>!BLOCKED_STATUSES.includes(i.status)); }
+function missingCoreCategories(items){ const avail=availableItems(items); return REQUIRED_SLOTS.filter(cat=>!avail.some(i=>i.category===cat)); }
+function piecesOf(c){ return [c.top,c.bottom,c.footwear,c.outerwear,c.accessory].filter(Boolean); }
+function avg(nums){ return nums.length? nums.reduce((a,b)=>a+b,0)/nums.length : 0; }
+function paletteOf(c){ const ordered=[c.bottom.primaryColor,c.top.primaryColor,c.footwear.primaryColor,c.outerwear&&c.outerwear.primaryColor,c.accessory&&c.accessory.primaryColor].filter(Boolean); return analyzePalette(ordered); }
+function colorScoreOf(c, palette){ let score=palette.score; const loud=piecesOf(c).filter(i=>i.pattern!=='solid' && i.pattern!=='textured').length; if(loud>1) score-=14; else if(loud===1) score+=2; return clamp(score,0,100); }
+function occasionScoreOf(c, occasion){ if(!occasion) return 80; return avg(piecesOf(c).map(i=>hasTag(i.occasions,occasion)?100:52)); }
+function styleCohesionOf(c, selected, profileStyle){
+  const items=piecesOf(c); const norm=i=>(i.styles||[]).map(s=>s.toLowerCase());
+  let pairSum=0, pairCount=0;
+  for(let a=0;a<items.length;a++) for(let b=a+1;b<items.length;b++){
+    const A=norm(items[a]), B=norm(items[b]);
+    const overlap=A.some(s=>B.includes(s));
+    const lenient = items[a].category==='footwear'||items[b].category==='footwear'||items[a].category==='accessories'||items[b].category==='accessories';
+    pairSum += overlap?100:(lenient?74:56); pairCount++;
+  }
+  const cohesion = pairCount? pairSum/pairCount : 66;
+  const wanted=(selected||profileStyle||'').toLowerCase();
+  if(!wanted) return cohesion;
+  const fit = avg(items.map(i=>{ if(norm(i).includes(wanted)) return 100; if(i.category==='footwear'||i.category==='accessories') return 76; return 58; }));
+  return 0.45*cohesion + 0.55*fit;
+}
+function formalityScoreOf(c, occasion, shift){
+  const core=[c.top,c.bottom,c.footwear,c.outerwear].filter(Boolean);
+  const levels=core.map(i=>i.formalityLevel||3);
+  const spread=Math.max(...levels)-Math.min(...levels);
+  const spreadScore = spread===0?100: spread===1?92: spread===2?70: spread===3?40:15;
+  const level=Math.round(avg(levels)*10)/10;
+  let targetScore=82;
+  if(occasion){ const target=clamp((OCCASION_FORMALITY[occasion]??3)+shift,1,6); const diff=Math.abs(level-target); targetScore=clamp(100-diff*22,10,100); }
+  return { score: 0.55*spreadScore+0.45*targetScore, level };
+}
+function weatherScoreOf(c, weather){ if(!weather) return 82; const wanted=WEATHER_TO_SEASONS[weather]||[]; return avg(piecesOf(c).map(i=>{ const seasons=i.seasons||[]; if(!seasons.length) return 72; return seasons.some(s=>wanted.includes(s))?100:40; })); }
+function preferenceScoreOf(c, prefs){
+  let score=78;
+  const favColors=(prefs.favoriteColors||[]).map(x=>x.toLowerCase());
+  const avoid=(prefs.avoidColors||[]).map(x=>x.toLowerCase());
+  const favStyles=(prefs.favoriteStyles||[]).map(x=>x.toLowerCase());
+  for(const item of piecesOf(c)){
+    const color=(item.primaryColor||'').toLowerCase();
+    if(item.isFavorite) score+=7;
+    if(favColors.includes(color)) score+=5;
+    if(avoid.includes(color)) score-=34;
+    if(item.status==='worn') score-=3;
+    if((item.styles||[]).map(s=>s.toLowerCase()).some(s=>favStyles.includes(s))) score+=2;
+    if(item.lastWorn && Date.now()-new Date(item.lastWorn).getTime() < 3*864e5) score-=8;
+    score += Math.min(6, (item.timesWorn||0)*1.2);
+  }
+  return clamp(score,0,100);
+}
+function recencyPenaltyOf(c, recent){
+  const ids=piecesOf(c).map(i=>i.id).sort().join('|');
+  for(const r of recent){ if([...r.itemIds].sort().join('|')===ids){ if(r.daysAgo<=3) return 26; if(r.daysAgo<=7) return 16; if(r.daysAgo<=14) return 8; } }
+  return 0;
+}
+function toSlots(c){ const slots=[{slot:'top',item:c.top},{slot:'bottom',item:c.bottom},{slot:'footwear',item:c.footwear}]; if(c.outerwear) slots.push({slot:'outerwear',item:c.outerwear}); if(c.accessory) slots.push({slot:'accessory',item:c.accessory}); return slots.sort((a,b)=>SLOT_ORDER.indexOf(a.slot)-SLOT_ORDER.indexOf(b.slot)); }
+function setKey(c){ return piecesOf(c).map(i=>i.id).sort().join('|'); }
+function samplePool(rng, pool, size){ if(pool.length<=size) return pool; const copy=[...pool]; for(let i=copy.length-1;i>0;i--){ const j=Math.floor(rng()*(i+1)); [copy[i],copy[j]]=[copy[j],copy[i]]; } return copy.slice(0,size); }
+function dominantStyle(items){ const counts=new Map(); for(const i of items) for(const s of (i.styles||[])) counts.set(s,(counts.get(s)||0)+1); let best='smart casual', bestN=0; for(const [s,n] of counts) if(n>bestN){best=s; bestN=n;} return best; }
+
+function generateOutfits(input){
+  const criteria = input.criteria || {};
+  const maxOptions = input.maxOptions || 3;
+  const avail = availableItems(input.items);
+  const rng = seededRng(criteria.seed || ('seed:'+Date.now()+':'+Math.random()));
+  const look = lookById(criteria.look);
+  const style = criteria.style || (look? look.styles[0] : '') || '';
+  const formalityShift = look? look.formalityShift : 0;
+  const pools = {
+    top: avail.filter(i=>i.category==='tops'),
+    bottom: avail.filter(i=>i.category==='bottoms'),
+    footwear: avail.filter(i=>i.category==='footwear'),
+    outerwear: avail.filter(i=>i.category==='outerwear'),
+    accessory: avail.filter(i=>i.category==='accessories'),
+  };
+  const anchor = criteria.startingItemId ? avail.find(i=>i.id===criteria.startingItemId) : undefined;
+  if(anchor){ const slot=CATEGORY_TO_SLOT[anchor.category]; if(slot) pools[slot]=[anchor]; }
+  const missing = missingCoreCategories(input.items);
+  if(missing.length) return { outfits:[], missingCategories:missing, availableCount:avail.length };
+
+  const tops = samplePool(rng, pools.top, 24);
+  const bottoms = samplePool(rng, pools.bottom, 24);
+  const footwear = samplePool(rng, pools.footwear, 24);
+  const weather = criteria.weather || null;
+  const occasion = criteria.occasion;
+
+  const scored = []; const seen = new Set();
+  for(const top of tops){
+    for(const bottom of bottoms){
+      const tb = pairColorScore(top.primaryColor, bottom.primaryColor);
+      if(tb<38 && rng()>0.12) continue;
+      if(Math.abs((top.formalityLevel||3)-(bottom.formalityLevel||3))>=4) continue;
+      for(const shoe of footwear){
+        const cand = { top, bottom, footwear:shoe };
+        const wantOuter = pools.outerwear.length>0 && (
+          (anchor && anchor.category==='outerwear') ||
+          (weather==='cold' ? true : weather==='cool' ? rng()<0.55 : weather==='hot' ? false : rng()<0.32)
+        );
+        if(wantOuter){
+          let best, bestScore=-1;
+          for(const o of samplePool(rng, pools.outerwear, 6)){
+            const s = pairColorScore(o.primaryColor, top.primaryColor)*0.35 + pairColorScore(o.primaryColor, bottom.primaryColor)*0.35 + (occasion && hasTag(o.occasions, occasion)?20:0) - Math.abs((o.formalityLevel||3)-(top.formalityLevel||3))*6 + rng()*6;
+            if(s>bestScore){ bestScore=s; best=o; }
+          }
+          if(best) cand.outerwear = best;
+        }
+        if(pools.accessory.length>0 && occasion!=='gym' && rng()<0.5){
+          let best, bestScore=-1;
+          for(const a of samplePool(rng, pools.accessory, 6)){
+            const s = (occasion && hasTag(a.occasions, occasion)?60:30) + pairColorScore(a.primaryColor, top.primaryColor)*0.3 + rng()*8;
+            if(s>bestScore){ bestScore=s; best=a; }
+          }
+          if(best) cand.accessory = best;
+        }
+        const key = setKey(cand);
+        if(seen.has(key)) continue;
+        seen.add(key);
+        const palette = paletteOf(cand);
+        const formality = formalityScoreOf(cand, occasion, formalityShift);
+        const breakdown = {
+          color: round(colorScoreOf(cand, palette)),
+          occasion: round(occasionScoreOf(cand, occasion)),
+          style: round(styleCohesionOf(cand, style, input.preferences.profileStyle)),
+          formality: round(formality.score),
+          weather: round(weatherScoreOf(cand, weather)),
+          preference: round(preferenceScoreOf(cand, input.preferences)),
+        };
+        const total = round(
+          WEIGHTS.color*breakdown.color + WEIGHTS.occasion*breakdown.occasion + WEIGHTS.style*breakdown.style +
+          WEIGHTS.formality*breakdown.formality + WEIGHTS.weather*breakdown.weather + WEIGHTS.preference*breakdown.preference -
+          recencyPenaltyOf(cand, input.recent)
+        );
+        scored.push({ cand, breakdown, palette, formality: formality.level, total });
+      }
+    }
+  }
+  scored.sort((a,b)=>b.total-a.total);
+  const anchorId = anchor? anchor.id : undefined;
+  const accepted = [];
+  const distinctEnough = (a,b,min)=>{ const idsA=new Set(piecesOf(a.cand).map(i=>i.id)); if(anchorId) idsA.delete(anchorId); return piecesOf(b.cand).filter(i=>i.id!==anchorId && !idsA.has(i.id)).length >= min; };
+  for(const s of scored){ if(accepted.length>=maxOptions) break; if(s.total<DISPLAY_THRESHOLD) continue; if(accepted.every(a=>distinctEnough(a,s,2))) accepted.push(s); }
+  if(accepted.length < Math.min(2,maxOptions)){
+    for(const s of scored){ if(accepted.length>=Math.min(2,maxOptions)) break; if(s.total<SOFT_FLOOR) continue; if(!accepted.includes(s) && accepted.every(a=>distinctEnough(a,s,1))) accepted.push(s); }
+  }
+  const resolvedStyle = (style || input.preferences.profileStyle || dominantStyle(avail) || 'smart casual').toLowerCase();
+  const outfits = accepted.map(s=>{
+    const items = toSlots(s.cand);
+    const { explanation, reasons } = explainOutfit({
+      items, palette:s.palette, breakdown:s.breakdown, occasion: occasion || 'casual', formality: Math.round(s.formality), weather,
+      favoriteNames: items.filter(x=>x.item.isFavorite).map(x=>x.item.name),
+    });
+    return { items, score:s.total, breakdown:s.breakdown, label: matchLabel(s.total), explanation, reasons, paletteType:s.palette.type, formality:Math.round(s.formality), occasion: occasion||'casual', style: resolvedStyle, weather };
+  });
+  return { outfits, missingCategories: [], availableCount: avail.length };
+}
+
+/* ---------------------------------------------------------------------- *
+ * Wardrobe insights — a few human sentences, not a dashboard
+ * ---------------------------------------------------------------------- */
+const NEGLECT_DAYS = 60;
+function daysSince(iso){ if(!iso) return null; return Math.floor((Date.now()-new Date(iso).getTime())/864e5); }
+function topOf(counts){ let best=null; for(const entry of counts){ if(!best || entry[1]>best[1]) best=entry; } return best; }
+function buildInsights(items){
+  const out=[]; if(items.length<3) return out;
+  const worn=[...items].sort((a,b)=>b.timesWorn-a.timesWorn);
+  const most=worn[0];
+  if(most && most.timesWorn>0) out.push({ id:'most-worn', icon:'star', text:`Your ${most.name.toLowerCase()} is your most worn item \u2014 ${most.timesWorn} wear${most.timesWorn===1?'':'s'}.`, itemId:most.id, imageUrl:most.imageUrl });
+  const neglected = items.map(i=>({item:i, days:daysSince(i.lastWorn)})).filter(x=>x.days===null || x.days>=NEGLECT_DAYS).sort((a,b)=>(b.days??9999)-(a.days??9999));
+  if(neglected.length){
+    const {item,days}=neglected[0];
+    out.push({ id:'neglected', icon:'clock', text: days===null? `You haven't worn your ${item.name.toLowerCase()} yet \u2014 give it a try.` : `You haven't worn your ${item.name.toLowerCase()} in ${days} days.`, itemId:item.id, imageUrl:item.imageUrl });
+    if(neglected.length>1) out.push({ id:'neglected-count', icon:'shirt', text:`${neglected.length} pieces haven't been worn in a while \u2014 they could freshen up your rotation.` });
+  }
+  const colorCounts=new Map(), styleCounts=new Map();
+  for(const i of items){ colorCounts.set(i.primaryColor,(colorCounts.get(i.primaryColor)||0)+1); for(const s of (i.styles||[])) styleCounts.set(s,(styleCounts.get(s)||0)+1); }
+  const topColor=topOf(colorCounts);
+  if(topColor && topColor[1]>=2) out.push({ id:'top-color', icon:'palette', text:`${cap(topColor[0])} is your signature color \u2014 ${topColor[1]} pieces in your closet.` });
+  const topStyle=topOf(styleCounts);
+  if(topStyle && topStyle[1]>=2) out.push({ id:'top-style', icon:'sparkles', text:`You lean ${topStyle[0]} \u2014 it shows up in ${topStyle[1]} of your pieces.` });
+  const leastWorn=worn[worn.length-1];
+  if(leastWorn && most && leastWorn.id!==most.id && leastWorn.timesWorn===0) out.push({ id:'least-worn', icon:'clock', text:`Your ${leastWorn.name.toLowerCase()} is still waiting for its first outing.`, itemId:leastWorn.id, imageUrl:leastWorn.imageUrl });
+  return out.slice(0,5);
+}
+
+/* ---------------------------------------------------------------------- *
+ * Heuristic "AI" analysis — deterministic mock provider driven by the
+ * photo's sampled dominant color + the chosen category/subcategory, same
+ * shape as the product's HeuristicAnalyzer. No network, no server.
+ * ---------------------------------------------------------------------- */
+const CATEGORY_STYLES = {
+  tops:['smart casual','casual','classic','minimal','relaxed','streetwear'],
+  bottoms:['smart casual','casual','classic','minimal','streetwear','relaxed'],
+  outerwear:['classic','smart casual','minimal','streetwear','formal'],
+  footwear:['minimal','classic','smart casual','streetwear','formal','sporty'],
+  accessories:['classic','minimal','smart casual','formal'],
+};
+const OCCASION_BY_SUB = {
+  shirt:['office','date','dinner','casual'], blouse:['office','date','dinner'], polo:['casual','office','dinner','travel'],
+  't-shirt':['casual','travel','party','gym'], 'tank top':['gym','casual','travel'], hoodie:['casual','travel','gym'],
+  sweater:['casual','office','dinner','date'], sweatshirt:['casual','travel','gym'], turtleneck:['office','dinner','date','formal'],
+  jeans:['casual','travel','date','party'], chinos:['office','casual','dinner','date'], trousers:['office','formal','wedding','dinner'],
+  shorts:['casual','travel','gym'], joggers:['gym','casual','travel'], jacket:['casual','dinner','travel','date'],
+  blazer:['office','formal','wedding','dinner','date'], coat:['office','formal','dinner','travel'], cardigan:['casual','office','dinner'],
+  sneakers:['casual','travel','gym','party'], trainers:['gym','casual','travel'], 'formal shoes':['office','formal','wedding','dinner'],
+  boots:['casual','travel','date','dinner'], loafers:['office','dinner','date','casual'], derbies:['office','formal','dinner'],
+  sandals:['casual','travel'], heels:['party','wedding','formal','dinner','date'], watch:['office','formal','dinner','date','casual','wedding'],
+  belt:['office','formal','dinner','casual'], sunglasses:['casual','travel','party'], cap:['casual','travel','gym'],
+  tie:['office','formal','wedding'], jewelry:['party','wedding','date','dinner'], scarf:['casual','travel','dinner'], bag:['travel','office','casual'],
+  henley:['casual','travel'], 'cargo pants':['casual','travel'], skirt:['office','date','dinner','casual'], vest:['casual','office'], overshirt:['casual','travel'], parka:['casual','travel'], trench:['office','dinner'],
+};
+const MATERIAL_BY_SUB = {
+  't-shirt':['cotton','cotton blend'], 'tank top':['cotton'], shirt:['cotton','cotton blend','linen'], blouse:['silk','cotton'],
+  polo:['cotton blend','knit'], henley:['cotton'], hoodie:['fleece','cotton blend'], sweatshirt:['fleece','cotton blend'],
+  sweater:['wool','knit','cashmere'], turtleneck:['wool','knit'], cardigan:['knit','wool'], jeans:['denim'],
+  chinos:['cotton','cotton blend'], trousers:['wool','polyester'], shorts:['cotton'], joggers:['cotton blend','polyester'],
+  'cargo pants':['canvas','cotton'], skirt:['cotton','polyester'], jacket:['cotton','nylon','leather'], blazer:['wool','cotton blend'],
+  coat:['wool'], parka:['nylon','polyester'], trench:['cotton'], vest:['cotton','fleece'], overshirt:['cotton','canvas'],
+  sneakers:['leather','canvas'], trainers:['polyester','canvas'], 'formal shoes':['leather'], derbies:['leather'],
+  loafers:['leather','suede'], boots:['leather','suede'], sandals:['leather'], heels:['leather'], belt:['leather'],
+  bag:['leather','canvas'], scarf:['wool','cashmere'], tie:['silk'], cap:['cotton'],
+};
+const FIT_BY_SUB = {
+  't-shirt':['regular','relaxed'], shirt:['regular','slim'], blouse:['regular'], polo:['regular','slim'], hoodie:['relaxed','oversized'],
+  sweatshirt:['relaxed','oversized'], sweater:['regular','relaxed'], jeans:['slim','regular'], chinos:['slim','regular'],
+  trousers:['regular','slim'], joggers:['relaxed'], shorts:['regular'], blazer:['slim','regular'], coat:['regular','oversized'], jacket:['regular'],
+};
+const DARK_COLOR_IDS = new Set(['black','charcoal','navy','burgundy','brown','purple']);
+const WARM_COLOR_IDS = new Set(COLORS.filter(c=>['warm','earth'].includes(c.family)).map(c=>c.id));
+function seasonsFor(color, category, rng){
+  if(category==='outerwear') return ['fall','winter','spring'];
+  if(DARK_COLOR_IDS.has(color)) return ['fall','winter','spring'];
+  const light = !WARM_COLOR_IDS.has(color);
+  if(light && rng()<0.6) return ['spring','summer','fall'];
+  return rng()<0.5 ? ['spring','summer'] : SEASON_IDS.slice(0,3);
+}
+function pick(rng, arr){ return arr[Math.floor(rng()*arr.length)]; }
+/** Deterministic heuristic analysis — mirrors the product's mock AI provider. */
+function analyzeClothingItem({ category, subcategory, dominantColor, seedKey }){
+  const rng = seededRng(String(seedKey||'')+'|'+category+'|'+subcategory+'|'+(dominantColor||''));
+  const primaryColor = (dominantColor || 'grey').toLowerCase();
+  const stylePool = CATEGORY_STYLES[category] || STYLE_IDS;
+  const styles = [...new Set([pick(rng,stylePool), pick(rng,stylePool)])];
+  const occasions = (OCCASION_BY_SUB[subcategory] || ['casual','dinner','travel']).slice(0,4);
+  const seasons = seasonsFor(primaryColor, category, rng);
+  const formalityLevel = defaultFormality(subcategory, category);
+  const materialPool = MATERIAL_BY_SUB[subcategory];
+  const material = materialPool ? pick(rng, materialPool) : null;
+  const fitPool = FIT_BY_SUB[subcategory];
+  const fit = category!=='accessories' && fitPool ? pick(rng, fitPool) : null;
+  const patternPool = ['solid','solid','solid', ...PATTERN_IDS.filter(p=>p!=='solid')];
+  const pattern = pick(rng, patternPool);
+  const secondaryColor = pattern!=='solid' && rng()<0.5 ? pick(rng, ['white','cream','grey','black']) : null;
+  const name = `${cap(primaryColor)} ${material && rng()<0.4 ? cap(material)+' ' : ''}${cap(subcategory)}`;
+  return { name, primaryColor, secondaryColor, pattern, material, fit, formalityLevel, styles, seasons, occasions };
+}
+
+/* ---------------------------------------------------------------------- *
+ * Client-side image pipeline — downscale + recompress, sample dominant
+ * color (feeds the analyzer). Pure browser canvas APIs.
+ * ---------------------------------------------------------------------- */
+const MAX_DIM = 640, JPEG_QUALITY = 0.78;
+function loadImage(src){ return new Promise((resolve,reject)=>{ const img=new Image(); img.onload=()=>resolve(img); img.onerror=()=>reject(new Error('Could not read that image')); img.src=src; }); }
+async function processClothingImage(fileOrBlob){
+  const objectUrl = URL.createObjectURL(fileOrBlob);
+  try{
+    const img = await loadImage(objectUrl);
+    const scale = Math.min(1, MAX_DIM/Math.max(img.width,img.height));
+    const width = Math.max(1, Math.round(img.width*scale)), height = Math.max(1, Math.round(img.height*scale));
+    const canvas = document.createElement('canvas'); canvas.width=width; canvas.height=height;
+    const ctx = canvas.getContext('2d'); ctx.drawImage(img,0,0,width,height);
+    const sample = document.createElement('canvas'); sample.width=14; sample.height=14;
+    const sctx = sample.getContext('2d'); let dominantColor='grey';
+    sctx.drawImage(canvas,0,0,14,14);
+    const { data } = sctx.getImageData(0,0,14,14);
+    let r=0,g=0,b=0,n=0;
+    for(let i=0;i<data.length;i+=4){ if(data[i+3]<40) continue; r+=data[i]; g+=data[i+1]; b+=data[i+2]; n++; }
+    if(n>0) dominantColor = nearestColor(r/n,g/n,b/n);
+    const dataUrl = canvas.toDataURL('image/jpeg', JPEG_QUALITY);
+    return { dataUrl, width, height, dominantColor };
+  } finally { URL.revokeObjectURL(objectUrl); }
+}
+
+/* Garment-silhouette placeholder art, tinted by the item's primary color. */
+const SILHOUETTES = {
+  tops:'M32 8 22 16l6 10 4-3v45h36V23l4 3 6-10-10-8h-8a8 8 0 0 1-16 0h-8Z',
+  bottoms:'M26 10h32l3 58h-13l-2-34-2 34H31L26 10Z',
+  outerwear:'M28 8 16 18l7 11 5-4v43h48V25l5 4 7-11-12-10h-9a10 10 0 0 1-20 0h-9Z',
+  footwear:'M14 46c0-10 8-14 16-20 5-4 8-8 10-12l14 4-2 10 14 6c6 2 10 6 10 12v10H14V46Z',
+  accessories:'M50 16a20 20 0 1 0 0 40 20 20 0 0 0 0-40Zm0 8a12 12 0 1 1 0 24 12 12 0 0 1 0-24Z',
+};
+function placeholderImage(category, primaryColorId, secondaryColorId){
+  const hex = colorHex(primaryColorId);
+  const light = hexToHsl(hex).l > 0.72;
+  const stroke = light ? '#00000022' : '#ffffff22';
+  const path = SILHOUETTES[category] || SILHOUETTES.tops;
+  const bg2 = colorHex(secondaryColorId) || '#00000000';
+  const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100">
+    <defs><linearGradient id="g" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="${hex}"/><stop offset="1" stop-color="${hex}" stop-opacity=".78"/>
+    </linearGradient></defs>
+    <rect width="100" height="100" fill="${light?'#1a1a22':'#0c0c12'}"/>
+    <path d="${path}" fill="url(#g)" stroke="${stroke}" stroke-width="1.5"/>
+  </svg>`;
+  return 'data:image/svg+xml;utf8,' + encodeURIComponent(svg);
+}
+
+/* =========================================================================
+   Persistence — everything lives in localStorage. One JSON blob, versioned.
+   ========================================================================= */
+const DB_KEY = 'fitpick_db_v1';
+function freshDB(){
+  return {
+    items: [], outfits: [], wear: [],
+    profile: { name:'Alex', preferredStyle:'', preferences:{ favoriteColors:[], favoriteStyles:[], avoidColors:[], preferredFit:'' }, theme:'dark' },
+  };
+}
+let DB = null;
+function loadDB(){
+  try{ const raw = localStorage.getItem(DB_KEY); DB = raw ? JSON.parse(raw) : freshDB(); }
+  catch(e){ DB = freshDB(); }
+  if(!DB.profile) DB.profile = freshDB().profile;
+  if(!DB.profile.preferences) DB.profile.preferences = freshDB().profile.preferences;
+  return DB;
+}
+function saveDB(){
+  try{ localStorage.setItem(DB_KEY, JSON.stringify(DB)); }
+  catch(e){ toast('Storage is full \u2014 try removing an item or a photo.'); }
+}
+
+function getItem(id){ return DB.items.find(i=>i.id===id); }
+function getOutfit(id){ return DB.outfits.find(o=>o.id===id); }
+function outfitItemsResolved(outfit){ return outfit.items.map(s=>({ slot:s.slot, item:getItem(s.itemId) })).filter(s=>s.item); }
+function closetSummary(){
+  const byCategory={}; for(const c of CATEGORY_IDS) byCategory[c]=0;
+  for(const i of DB.items) byCategory[i.category]=(byCategory[i.category]||0)+1;
+  return { total: DB.items.length, byCategory };
+}
+function recentCombos(){
+  const cutoff = 14;
+  return DB.wear.filter(w=>{ const d=daysSince(w.wornDate+'T12:00:00'); return d!==null && d<=cutoff; })
+    .map(w=>{ const o=getOutfit(w.outfitId); if(!o) return null; return { itemIds:o.items.map(s=>s.itemId), daysAgo: daysSince(w.wornDate+'T12:00:00') ?? 0 }; })
+    .filter(Boolean);
+}
+function enginePrefs(){
+  const p = DB.profile.preferences;
+  return { favoriteColors:p.favoriteColors||[], favoriteStyles:p.favoriteStyles||[], avoidColors:p.avoidColors||[], preferredFit:p.preferredFit||'', profileStyle: DB.profile.preferredStyle||'' };
+}
+
+function addWearForOutfitItems(outfitItemSlots){
+  const wornDate = dateISO(new Date());
+  for(const {item} of outfitItemSlots){
+    const it = getItem(item.id);
+    if(!it) continue;
+    it.timesWorn = (it.timesWorn||0)+1;
+    it.lastWorn = new Date().toISOString();
+    if(it.status==='clean') it.status='worn';
+  }
+}
+
+function wearOutfit(outfitId, opts){
+  opts = opts || {};
+  const outfit = getOutfit(outfitId);
+  if(!outfit) return;
+  const entry = { id: uid(), wornDate: dateISO(new Date()), occasion: opts.occasion || outfit.occasion || 'casual', rating: opts.rating ?? null, notes: opts.notes ?? null, outfitId };
+  DB.wear.unshift(entry);
+  outfit.lastWorn = new Date().toISOString();
+  addWearForOutfitItems(outfitItemsResolved(outfit));
+  saveDB();
+}
+
+/** Persist a freshly-generated outfit (from the engine) as a saved OutfitDTO. */
+function saveGeneratedOutfit(gen, name){
+  const outfit = {
+    id: uid(),
+    name: name || `${cap(gen.style||'')} ${cap(gen.occasion||'')}`.trim() || 'Untitled Look',
+    occasion: gen.occasion || 'casual', style: gen.style || '', weather: gen.weather || null,
+    compatibilityScore: gen.score, isFavorite: false, createdAt: new Date().toISOString(),
+    items: gen.items.map(s=>({ slot:s.slot, itemId:s.item.id })), lastWorn: null,
+  };
+  DB.outfits.unshift(outfit);
+  saveDB();
+  return outfit;
+}
+
+/* ---------------------------------------------------------------------- *
+ * Sample wardrobe — ten pieces + three outfits + wear history, so the app
+ * is never empty on first look. Photos are tinted garment silhouettes.
+ * ---------------------------------------------------------------------- */
+const DEMO_ITEMS = [
+  { name:'White Oxford Shirt', category:'tops', subcategory:'shirt', primary:'white', pattern:'solid', styles:['smart casual','classic'], seasons:['spring','summer','fall'], occasions:['office','date','dinner','casual'], brand:'Brooks Brothers', material:'cotton', fit:'regular', timesWorn:2, lastWornDaysAgo:4 },
+  { name:'Black T-shirt', category:'tops', subcategory:'t-shirt', primary:'black', pattern:'solid', styles:['minimal','casual'], seasons:['spring','summer','fall'], occasions:['casual','travel','party','gym'], brand:'Uniqlo', material:'cotton', fit:'regular', timesWorn:3, lastWornDaysAgo:2 },
+  { name:'Grey Polo', category:'tops', subcategory:'polo', primary:'grey', pattern:'solid', styles:['smart casual','relaxed'], seasons:['spring','summer'], occasions:['casual','office','dinner','travel'], brand:'Ralph Lauren', material:'cotton blend', fit:'slim', timesWorn:1, lastWornDaysAgo:8 },
+  { name:'Navy Chinos', category:'bottoms', subcategory:'chinos', primary:'navy', pattern:'solid', styles:['smart casual','classic'], seasons:['spring','summer','fall'], occasions:['office','dinner','date','casual'], brand:'J.Crew', material:'cotton', fit:'slim', timesWorn:2, lastWornDaysAgo:4 },
+  { name:'Black Jeans', category:'bottoms', subcategory:'jeans', primary:'black', pattern:'solid', styles:['minimal','streetwear'], seasons:['spring','fall','winter'], occasions:['casual','date','party','dinner'], brand:"Levi's", material:'denim', fit:'slim', timesWorn:2, lastWornDaysAgo:1 },
+  { name:'Blue Jeans', category:'bottoms', subcategory:'jeans', primary:'denim', pattern:'solid', styles:['casual','classic'], seasons:['spring','summer','fall','winter'], occasions:['casual','travel','party'], brand:"Levi's", material:'denim', fit:'regular', timesWorn:3, lastWornDaysAgo:2 },
+  { name:'White Sneakers', category:'footwear', subcategory:'sneakers', primary:'white', pattern:'solid', styles:['minimal','smart casual'], seasons:['spring','summer','fall'], occasions:['casual','travel','dinner','date','party'], brand:'Common Projects', material:'leather', fit:null, timesWorn:4, lastWornDaysAgo:1 },
+  { name:'Brown Loafers', category:'footwear', subcategory:'loafers', primary:'brown', pattern:'solid', styles:['classic','smart casual'], seasons:['spring','summer','fall'], occasions:['office','dinner','date','formal'], brand:'Cole Haan', material:'leather', fit:null, timesWorn:1, lastWornDaysAgo:9 },
+  { name:'Navy Blazer', category:'outerwear', subcategory:'blazer', primary:'navy', pattern:'solid', styles:['classic','formal','smart casual'], seasons:['fall','winter','spring'], occasions:['office','formal','dinner','wedding','date'], brand:'Hugo Boss', material:'wool', fit:'regular', timesWorn:1, lastWornDaysAgo:4 },
+  { name:'Black Watch', category:'accessories', subcategory:'watch', primary:'black', pattern:'solid', styles:['minimal','classic'], seasons:['spring','summer','fall','winter'], occasions:['office','formal','dinner','date','casual','wedding'], brand:'Nomad', material:null, fit:null, timesWorn:3, lastWornDaysAgo:1 },
+];
+function seedSampleWardrobe(){
+  if(DB.items.length) return false;
+  const idByName = {};
+  for(const d of DEMO_ITEMS){
+    const id = uid();
+    idByName[d.name] = id;
+    DB.items.push({
+      id, name:d.name, imageUrl: placeholderImage(d.category, d.primary), category:d.category, subcategory:d.subcategory,
+      primaryColor:d.primary, secondaryColor:null, pattern:d.pattern, material:d.material, fit:d.fit,
+      formalityLevel: defaultFormality(d.subcategory, d.category), styles:d.styles, seasons:d.seasons, occasions:d.occasions,
+      brand:d.brand, status:'clean', notes:null, timesWorn:d.timesWorn,
+      lastWorn: d.lastWornDaysAgo!=null ? new Date(Date.now()-d.lastWornDaysAgo*864e5).toISOString() : null,
+      isFavorite:false, createdAt:new Date().toISOString(),
+    });
+  }
+  const mk = (name, occasion, style, score, names)=>{
+    const outfit = { id: uid(), name, occasion, style, weather:null, compatibilityScore:score, isFavorite:false, createdAt:new Date().toISOString(), lastWorn:null,
+      items: names.map(n=>{ const def=DEMO_ITEMS.find(d=>d.name===n); const slot=CATEGORY_TO_SLOT[def.category]; return { slot, itemId:idByName[n] }; }) };
+    DB.outfits.push(outfit); return outfit;
+  };
+  const smartCasual = mk('Smart Casual Classic','dinner','smart casual',92.4,['White Oxford Shirt','Navy Chinos','Brown Loafers','Navy Blazer','Black Watch']);
+  const weekend = mk('Weekend Minimal','casual','minimal',90.1,['Black T-shirt','Blue Jeans','White Sneakers']);
+  const city = mk('City Evening','date','smart casual',88.2,['Grey Polo','Black Jeans','White Sneakers','Black Watch']);
+  smartCasual.isFavorite = true;
+  getItem(idByName['White Oxford Shirt']).isFavorite = true;
+  getItem(idByName['White Sneakers']).isFavorite = true;
+  const history = [[smartCasual.id,'dinner',6,5],[weekend.id,'casual',4,4],[city.id,'date',2,null],[weekend.id,'casual',1,5]];
+  for(const [outfitId, occasion, daysAgo, rating] of history){
+    DB.wear.push({ id:uid(), wornDate: dateISO(new Date(Date.now()-daysAgo*864e5)), occasion, rating, notes:null, outfitId });
+  }
+  saveDB();
+  return true;
+}
+
+/* =========================================================================
+   UI chrome — toasts, sheets, confirm dialog
+   ========================================================================= */
+function toast(msg){
+  const host = document.getElementById('toasts');
+  const el = document.createElement('div');
+  el.className = 'toast'; el.textContent = msg;
+  host.appendChild(el);
+  setTimeout(()=>{ el.style.transition='opacity .25s ease'; el.style.opacity='0'; setTimeout(()=>el.remove(),250); }, 2200);
+}
+function openSheet(html){
+  const root = document.getElementById('sheet-root');
+  root.innerHTML = `<div class="overlay" onclick="if(event.target===this) closeSheet()"><div class="sheet">${html}</div></div>`;
+}
+function closeSheet(){ document.getElementById('sheet-root').innerHTML=''; }
+function confirmAction(title, body, confirmLabel, onConfirmName){
+  openSheet(`
+    <div class="sheet-handle"></div>
+    <h3 style="font-size:17px;font-weight:800;margin-bottom:6px;">${esc(title)}</h3>
+    <p class="small muted" style="line-height:1.55;margin-bottom:18px;">${esc(body)}</p>
+    <div class="row" style="gap:10px;">
+      <button class="btn btn-secondary grow" onclick="closeSheet()">Cancel</button>
+      <button class="btn btn-danger grow" onclick="${onConfirmName}(); closeSheet();">${esc(confirmLabel)}</button>
+    </div>
+  `);
+}
+
+/* =========================================================================
+   Router + app shell
+   ========================================================================= */
+const OCCASION_ICONS = { office:'briefcase', casual:'shirt', date:'heart', dinner:'glass', party:'sparkles', wedding:'ring', formal:'star', travel:'plane', gym:'dumbbell' };
+const NAV = [
+  { href:'home', label:'Home', icon:'home' },
+  { href:'closet', label:'Closet', icon:'shirt' },
+  { href:'generate', label:'Generate', icon:'sparkles', accent:true },
+  { href:'outfits', label:'Outfits', icon:'layers' },
+  { href:'profile', label:'Profile', icon:'user' },
+];
+function currentRoute(){
+  const hash = (location.hash||'#/home').slice(2) || 'home';
+  const [path, qs] = hash.split('?');
+  const parts = path.split('/').filter(Boolean);
+  const params = new URLSearchParams(qs||'');
+  return { name: parts[0]||'home', arg: parts[1]||null, params };
+}
+function navTo(route){ location.hash = '#/'+route; }
+function go(route, arg){ location.hash = '#/'+route+(arg?'/'+arg:''); }
+
+function shellHTML(activeName, inner){
+  const initials = (DB.profile.name||'A').charAt(0).toUpperCase();
+  const railItems = NAV.map(n=>`
+    <button class="rail-item ${n.href===activeName?'active':''}" onclick="navTo('${n.href}')" aria-label="${n.label}">
+      ${icon(n.icon)}<span>${n.label}</span>
+    </button>`).join('');
+  const bnItems = NAV.map(n=>{
+    if(n.accent) return `<button class="bn-item accent" onclick="navTo('${n.href}')" aria-label="${n.label}">${icon(n.icon)}</button>`;
+    return `<button class="bn-item ${n.href===activeName?'active':''}" onclick="navTo('${n.href}')" aria-label="${n.label}">${icon(n.icon)}<span>${n.label}</span></button>`;
+  }).join('');
+  return `
+  <nav class="rail">
+    <div class="rail-logo">${logoMark(false)}</div>
+    <div class="rail-nav">${railItems}</div>
+    <div class="rail-bottom"><button class="btn-icon btn-ghost" style="border:1px solid var(--line);" onclick="toggleTheme()" aria-label="Toggle theme">${icon(DB.profile.theme==='light'?'moon':'sun')}</button></div>
+  </nav>
+  <header class="topbar"><div class="topbar-inner">
+    ${logoMark(true)}
+    <button class="btn-icon btn-ghost" style="border:1px solid var(--line);" onclick="toggleTheme()" aria-label="Toggle theme">${icon(DB.profile.theme==='light'?'moon':'sun')}</button>
+  </div></header>
+  <main><div class="main-inner fade-up" id="main-inner">${inner}</div></main>
+  <nav class="bottomnav"><div class="bottomnav-inner">${bnItems}</div></nav>
+  `;
+}
+function logoMark(withLabel){
+  return `<a href="#/home" class="logo" onclick="event.preventDefault(); navTo('home')">
+    <span class="mark gradient-accent">${icon('shirt')}</span>
+    ${withLabel? `<span>Fit<span class="text-gradient">Pick</span></span>` : ''}
+  </a>`;
+}
+function toggleTheme(){
+  DB.profile.theme = DB.profile.theme==='light' ? 'dark' : 'light';
+  document.documentElement.dataset.theme = DB.profile.theme;
+  saveDB();
+  render();
+}
+
+function render(){
+  const { name, arg, params } = currentRoute();
+  document.documentElement.dataset.theme = DB.profile.theme || 'dark';
+  let inner = '';
+  let active = name;
+  try{
+    if(name==='home') inner = renderHome();
+    else if(name==='closet') inner = renderCloset(params);
+    else if(name==='generate') inner = renderGenerate(params);
+    else if(name==='outfits') inner = renderOutfits();
+    else if(name==='profile') inner = renderProfile();
+    else if(name==='add') inner = renderAdd();
+    else if(name==='item') inner = renderItemDetail(arg);
+    else if(name==='outfit') inner = renderOutfitDetail(arg);
+    else { inner = renderHome(); active='home'; }
+  } catch(e){
+    console.error(e);
+    inner = `<div class="card"><p class="bold">Something went wrong</p><p class="small muted mt-2">${esc(e.message)}</p><button class="btn btn-secondary mt-4" onclick="navTo('home')">Go home</button></div>`;
+  }
+  document.getElementById('app').innerHTML = shellHTML(active, inner);
+  window.scrollTo(0,0);
+  afterRender(name, arg, params);
+}
+function afterRender(name, arg, params){
+  if(name==='add') initAddScreen();
+}
+window.addEventListener('hashchange', render);
+
+/* =========================================================================
+   Transient UI state (not persisted) — selections mid-flow, generation
+   results, camera state, etc.
+   ========================================================================= */
+const STATE = {
+  homeOccasion: null, homeLook: null, homeToday: null, homeLoading:false, homeMissing:[], homeSurprise:null,
+  genOccasion:null, genStyle:null, genWeather:null, genAnchorId:null, genResults:[], genMissing:[], genExpanded:{},
+  closetCategory:'all', closetQuery:'', closetSort:'recent',
+  addPhoto:null, addAnalysis:null, addStream:null,
+};
+
+/* =========================================================================
+   Shared components
+   ========================================================================= */
+function matchBadgeHTML(label){
+  const tone = label==='Excellent Match'?'success': label==='Great Match'?'accent': label==='Good Match'?'neutral':'warn';
+  return `<span class="badge badge-${tone}">${icon('sparkles')} ${esc(label)}</span>`;
+}
+function outfitVisualHTML(items, compact){
+  return `<div class="outfit-visual">${items.map(s=>`
+    <div class="outfit-slot">
+      <div class="thumb"><img src="${s.item.imageUrl}" alt="${esc(s.item.name)}" loading="lazy"></div>
+      ${compact?'':`<p>${esc(s.item.name)}</p>`}
+    </div>`).join('')}</div>`;
+}
+function thumbStripHTML(items, size){
+  size = size||40;
+  return `<div class="thumbstrip">${items.map(s=>`<div class="t" style="width:${size}px;height:${size}px;"><img src="${s.item.imageUrl}" alt=""></div>`).join('')}</div>`;
+}
+function scoreBreakdownHTML(b){
+  const rows = [['Color','color'],['Occasion','occasion'],['Style','style'],['Formality','formality'],['Weather','weather'],['Preference','preference']];
+  return rows.map(([label,key])=>`
+    <div class="row between small" style="margin-bottom:8px;">
+      <span class="muted" style="width:76px;">${label}</span>
+      <div class="scorebar grow"><div style="width:${clamp(b[key],0,100)}%"></div></div>
+      <span class="tiny faint" style="width:30px;text-align:right;">${Math.round(b[key])}</span>
+    </div>`).join('');
+}
+
+/** A freshly generated (not-yet-saved) outfit — the primary "look" card. */
+function generatedOutfitCardHTML(gen, key, opts){
+  opts = opts || {};
+  const expanded = !!STATE.genExpanded[key];
+  const favNames = gen.items.filter(s=>s.item.isFavorite).map(s=>s.item.name);
+  return `
+  <div class="card fade-up">
+    <div class="row between" style="margin-bottom:14px;">
+      ${matchBadgeHTML(gen.label)}
+      <span class="tiny faint">${cap(gen.occasion)} \u00b7 ${formalityLabel(gen.formality)}</span>
+    </div>
+    ${outfitVisualHTML(gen.items, false)}
+    <p class="small" style="margin-top:16px;line-height:1.6;">${esc(gen.explanation)}</p>
+    <button class="btn btn-ghost btn-sm" style="padding-left:0;margin-top:4px;" onclick="toggleGenExpand('${key}')">
+      ${expanded?'Hide details':'Why this outfit?'} ${icon(expanded?'chevDown':'chevRight')}
+    </button>
+    ${expanded?`
+      <div style="margin-top:6px;">
+        ${scoreBreakdownHTML(gen.breakdown)}
+        <ul style="margin:8px 0 0;padding-left:18px;" class="small muted">
+          ${gen.reasons.map(r=>`<li style="margin-bottom:3px;">${esc(r)}</li>`).join('')}
+        </ul>
+      </div>`:''}
+    <div class="row" style="gap:8px;margin-top:16px;flex-wrap:wrap;">
+      ${opts.onWear?`<button class="btn btn-primary grow" onclick="${opts.onWear}">${icon('check')} Wear it today</button>`:''}
+      ${opts.onSave?`<button class="btn btn-secondary" onclick="${opts.onSave}">${icon('bookmark')} Save</button>`:''}
+      ${opts.onAnother?`<button class="btn btn-secondary btn-icon" onclick="${opts.onAnother}" aria-label="Another">${icon('refresh')}</button>`:''}
+    </div>
+  </div>`;
+}
+function toggleGenExpand(key){ STATE.genExpanded[key] = !STATE.genExpanded[key]; render(); }
+
+function statusBadgeHTML(status){
+  const map = { clean:'badge-success', worn:'badge-neutral', laundry:'badge-warn', dry_cleaning:'badge-warn', unavailable:'badge-danger' };
+  const s = STATUS_IDS.find(s=>s.id===status);
+  return `<span class="badge ${map[status]||'badge-neutral'}">${s?s.label:status}</span>`;
+}
+
+/* =========================================================================
+   Home screen
+   ========================================================================= */
+function computeHomeToday(){
+  const missing = missingCoreCategories(DB.items);
+  STATE.homeMissing = missing;
+  if(missing.length || !DB.items.length){ STATE.homeToday = null; return; }
+  const criteria = { occasion: STATE.homeOccasion||undefined, look: STATE.homeLook||undefined, seed: 'home:'+(STATE.homeOccasion||'')+':'+(STATE.homeLook||'')+':'+(STATE.homeNonce||0) };
+  const res = generateOutfits({ items: DB.items, criteria, preferences: enginePrefs(), recent: recentCombos(), maxOptions:1 });
+  STATE.homeToday = res.outfits[0] || null;
+  STATE.homeMissing = res.missingCategories;
+}
+function dressMe(bumpNonce){
+  if(bumpNonce) STATE.homeNonce = (STATE.homeNonce||0)+1;
+  computeHomeToday();
+  render();
+}
+function selectHomeOccasion(id){ STATE.homeOccasion = STATE.homeOccasion===id? null : id; computeHomeToday(); render(); }
+function selectHomeLook(id){ STATE.homeLook = STATE.homeLook===id? null : id; computeHomeToday(); render(); }
+function surpriseMeHome(){
+  const res = generateOutfits({ items: DB.items, criteria:{ seed:'surprise:'+Date.now() }, preferences: enginePrefs(), recent: recentCombos(), maxOptions:1 });
+  if(res.outfits.length){ STATE.homeSurprise = res.outfits[0]; toast('Here\u2019s a surprise look'); }
+  else if(res.missingCategories.length) toast(`Add ${res.missingCategories.map(cap).join(', ')} to unlock outfits`);
+  else toast('Nothing clean available \u2014 check the laundry');
+  render();
+}
+function wearHomeToday(){
+  if(!STATE.homeToday) return;
+  const saved = saveGeneratedOutfit(STATE.homeToday, `${cap(STATE.homeToday.style||'')} Look`.trim());
+  wearOutfit(saved.id, { occasion: STATE.homeToday.occasion });
+  toast('Marked as worn today');
+  STATE.homeToday=null; STATE.homeSurprise=null;
+  computeHomeToday();
+  render();
+}
+function saveHomeToday(){
+  if(!STATE.homeToday) return;
+  saveGeneratedOutfit(STATE.homeToday, `${cap(STATE.homeToday.style||'')} Look`.trim());
+  toast('Saved to your outfits');
+}
+function wearHomeSurprise(){
+  if(!STATE.homeSurprise) return;
+  const saved = saveGeneratedOutfit(STATE.homeSurprise, 'Surprise Look');
+  wearOutfit(saved.id, { occasion: STATE.homeSurprise.occasion });
+  toast('Marked as worn today');
+  STATE.homeSurprise=null;
+  render();
+}
+function saveHomeSurprise(){
+  if(!STATE.homeSurprise) return;
+  saveGeneratedOutfit(STATE.homeSurprise, 'Surprise Look');
+  toast('Saved to your outfits');
+}
+
+function renderHome(){
+  const summary = closetSummary();
+  const empty = summary.total===0;
+  const firstName = (DB.profile.name||'there').split(' ')[0];
+  const greeting = greetingFor();
+  const dateLine = new Date().toLocaleDateString(undefined,{ weekday:'long', month:'long', day:'numeric' });
+
+  let html = `
+  <header class="row between" style="align-items:flex-start;margin-bottom:26px;">
+    <div>
+      <p class="small muted bold">${dateLine}</p>
+      <h1 style="font-size:26px;font-weight:800;letter-spacing:-.01em;margin-top:3px;">${greeting}, <span class="text-gradient">${esc(firstName)}</span></h1>
+    </div>
+    <div class="avatar gradient-accent">${esc(firstName.charAt(0).toUpperCase())}</div>
+  </header>`;
+
+  if(empty){
+    html += `
+    <div class="card pad-0">
+      <div class="empty">
+        <div class="ico">${icon('shirt')}</div>
+        <h3>Your wardrobe is empty</h3>
+        <p>Add your first clothing item and FitPick will start styling you.</p>
+        <div class="row wrap" style="justify-content:center;gap:8px;">
+          <button class="btn btn-primary" onclick="navTo('add')">${icon('plus')} Add Clothing</button>
+          <button class="btn btn-secondary" onclick="loadSamples()">Load Sample Wardrobe</button>
+        </div>
+      </div>
+    </div>`;
+    return html;
+  }
+
+  if(STATE.homeToday===null && STATE.homeMissing.length===0) computeHomeToday();
+
+  html += `
+  <section class="mt-6">
+    <div class="section-title"><h2>What are you dressing for?</h2></div>
+    <div class="grid-cats">
+      ${DRESS_ME_OCCASIONS.map(o=>`
+        <button class="cat-btn ${STATE.homeOccasion===o.id?'active':''}" onclick="selectHomeOccasion('${o.id}')">
+          ${icon(OCCASION_ICONS[o.id]||'sparkles')}<span>${o.label}</span>
+        </button>`).join('')}
+    </div>
+  </section>
+  <section class="mt-4">
+    <div class="section-title"><h2>How do you want to look?</h2></div>
+    <div class="scrollx">
+      ${LOOKS.map(l=>`<button class="chip ${STATE.homeLook===l.id?'selected':''}" onclick="selectHomeLook('${l.id}')">${l.label}</button>`).join('')}
+    </div>
+  </section>
+  <div class="row" style="gap:10px;margin-top:18px;">
+    <button class="btn btn-primary btn-lg grow" onclick="dressMe(true)">${icon('wand')} Dress Me</button>
+    <button class="btn btn-secondary btn-lg btn-icon" style="width:52px;" onclick="surpriseMeHome()" aria-label="Surprise me">${icon('dice')}</button>
+  </div>
+
+  <section class="mt-6">
+    <div class="section-title"><h2>Today's Look</h2>
+      <button class="btn btn-ghost btn-sm" onclick="dressMe(true)">${icon('refresh')} Another</button>
+    </div>
+    ${STATE.homeToday
+      ? generatedOutfitCardHTML(STATE.homeToday, 'home', { onWear:'wearHomeToday()', onSave:'saveHomeToday()' })
+      : `<div class="card"><p class="small muted">${STATE.homeMissing.length? `Add ${STATE.homeMissing.map(cap).join(', ')} to your closet to unlock outfit suggestions.` : 'Nothing clean is available right now \u2014 check your laundry status in the Closet.'}</p></div>`
+    }
+  </section>
+
+  ${STATE.homeSurprise? `
+  <section class="mt-6">
+    <div class="section-title"><h2>Surprise Pick</h2>
+      <button class="btn btn-ghost btn-sm" onclick="STATE.homeSurprise=null; render();">${icon('x')}</button>
+    </div>
+    ${generatedOutfitCardHTML(STATE.homeSurprise, 'surprise', { onWear:'wearHomeSurprise()', onSave:'saveHomeSurprise()' })}
+  </section>` : ''}
+
+  <section class="mt-6">
+    <div class="section-title"><h2>Your Closet</h2>
+      <button class="btn btn-ghost btn-sm" onclick="navTo('closet')">See all ${icon('arrowRight')}</button>
+    </div>
+    <div class="stat-grid">
+      <div class="stat-card"><div class="n">${summary.total}</div><div class="l">Total pieces</div></div>
+      <div class="stat-card"><div class="n">${DB.outfits.length}</div><div class="l">Saved outfits</div></div>
+      <div class="stat-card"><div class="n">${DB.wear.length}</div><div class="l">Times worn</div></div>
+    </div>
+  </section>
+  ${renderInsightsPreview()}
+  ${renderRecentlyWorn()}
+  `;
+  return html;
+}
+function renderInsightsPreview(){
+  const insights = buildInsights(DB.items).slice(0,2);
+  if(!insights.length) return '';
+  return `
+  <section class="mt-6">
+    <div class="section-title"><h2>Insights</h2></div>
+    <div class="card" style="display:flex;flex-direction:column;gap:14px;">
+      ${insights.map(i=>`
+        <div class="row" style="gap:12px;">
+          <div style="width:34px;height:34px;border-radius:11px;background:var(--surface2);display:grid;place-items:center;color:var(--accent);flex-shrink:0;">${icon(i.icon)}</div>
+          <p class="small" style="line-height:1.5;">${esc(i.text)}</p>
+        </div>`).join('')}
+    </div>
+  </section>`;
+}
+function renderRecentlyWorn(){
+  const recent = DB.wear.slice(0,4);
+  if(!recent.length) return '';
+  return `
+  <section class="mt-6">
+    <div class="section-title"><h2>Recently Worn</h2></div>
+    <div style="display:flex;flex-direction:column;gap:10px;">
+      ${recent.map(w=>{
+        const outfit = getOutfit(w.outfitId); if(!outfit) return '';
+        const items = outfitItemsResolved(outfit);
+        return `
+        <button class="card" style="width:100%;text-align:left;cursor:pointer;display:flex;align-items:center;gap:12px;padding:12px 14px;" onclick="go('outfit','${outfit.id}')">
+          ${thumbStripHTML(items, 38)}
+          <div class="grow" style="min-width:0;">
+            <p class="small bold" style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${esc(outfit.name)}</p>
+            <p class="tiny faint">${dayLabel(w.wornDate)} \u00b7 ${cap(w.occasion)}</p>
+          </div>
+          ${w.rating? `<span class="tiny bold" style="color:var(--warn);">${'\u2605'.repeat(w.rating)}</span>`:''}
+        </button>`;
+      }).join('')}
+    </div>
+  </section>`;
+}
+function loadSamples(){
+  const seeded = seedSampleWardrobe();
+  if(seeded) toast('Sample wardrobe loaded');
+  else toast('Your closet already has items');
+  STATE.homeToday=null;
+  render();
+}
+
+/* =========================================================================
+   Closet screen
+   ========================================================================= */
+function setClosetCategory(cat){ STATE.closetCategory=cat; render(); }
+function setClosetQuery(v){ STATE.closetQuery=v; renderClosetGridOnly(); }
+function setClosetSort(v){ STATE.closetSort=v; render(); }
+function renderClosetGridOnly(){
+  const host = document.getElementById('closet-grid');
+  if(host) host.outerHTML = closetGridHTML();
+}
+function filteredClosetItems(){
+  let items = DB.items.slice();
+  if(STATE.closetCategory!=='all') items = items.filter(i=>i.category===STATE.closetCategory);
+  const q = STATE.closetQuery.trim().toLowerCase();
+  if(q) items = items.filter(i => (i.name+' '+i.brand+' '+i.subcategory+' '+i.primaryColor).toLowerCase().includes(q));
+  if(STATE.closetSort==='recent') items.sort((a,b)=> new Date(b.createdAt)-new Date(a.createdAt));
+  else if(STATE.closetSort==='most-worn') items.sort((a,b)=> (b.timesWorn||0)-(a.timesWorn||0));
+  else if(STATE.closetSort==='least-worn') items.sort((a,b)=> (a.timesWorn||0)-(b.timesWorn||0));
+  else if(STATE.closetSort==='name') items.sort((a,b)=> a.name.localeCompare(b.name));
+  return items;
+}
+function itemTileHTML(item){
+  return `
+  <div class="item-tile" onclick="go('item','${item.id}')">
+    <div class="item-thumb">
+      <img src="${item.imageUrl}" alt="${esc(item.name)}" loading="lazy">
+      <div class="item-fav">${icon(item.isFavorite?'heartFill':'heart')}</div>
+      <div class="item-status">${statusBadgeHTML(item.status)}</div>
+    </div>
+    <p class="name">${esc(item.name)}</p>
+    <p class="sub">${cap(item.primaryColor)} \u00b7 worn ${item.timesWorn||0}\u00d7</p>
+  </div>`;
+}
+function closetGridHTML(){
+  const items = filteredClosetItems();
+  if(!items.length){
+    return `<div id="closet-grid" class="empty" style="padding-top:40px;">
+      <div class="ico">${icon('search')}</div>
+      <h3>No pieces found</h3>
+      <p>Try a different category or search term.</p>
+    </div>`;
+  }
+  return `<div id="closet-grid" class="item-grid">${items.map(itemTileHTML).join('')}</div>`;
+}
+function renderCloset(){
+  const summary = closetSummary();
+  let html = `
+  <header class="row between" style="margin-bottom:20px;">
+    <h1 style="font-size:22px;font-weight:800;">Closet</h1>
+    <button class="btn btn-primary btn-sm" onclick="navTo('add')">${icon('plus')} Add</button>
+  </header>`;
+
+  if(summary.total===0){
+    return html + `
+    <div class="card pad-0"><div class="empty">
+      <div class="ico">${icon('shirt')}</div>
+      <h3>No clothing yet</h3>
+      <p>Snap a photo of something in your closet to get started.</p>
+      <div class="row wrap" style="justify-content:center;gap:8px;">
+        <button class="btn btn-primary" onclick="navTo('add')">${icon('camera')} Add Clothing</button>
+        <button class="btn btn-secondary" onclick="loadSamples()">Load Sample Wardrobe</button>
+      </div>
+    </div></div>`;
+  }
+
+  html += `
+  <div class="field"><input class="input" placeholder="Search your closet\u2026" value="${esc(STATE.closetQuery)}" oninput="setClosetQuery(this.value)"></div>
+  <div class="scrollx" style="margin-bottom:14px;">
+    <button class="chip small ${STATE.closetCategory==='all'?'selected':''}" onclick="setClosetCategory('all')">All \u00b7 ${summary.total}</button>
+    ${CATEGORIES.map(c=>`<button class="chip small ${STATE.closetCategory===c.id?'selected':''}" onclick="setClosetCategory('${c.id}')">${c.label} \u00b7 ${summary.byCategory[c.id]||0}</button>`).join('')}
+  </div>
+  <div class="row between" style="margin-bottom:14px;">
+    <span class="tiny muted">${filteredClosetItems().length} piece${filteredClosetItems().length===1?'':'s'}</span>
+    <select class="input" style="width:auto;padding:7px 10px;font-size:12.5px;" onchange="setClosetSort(this.value)">
+      <option value="recent" ${STATE.closetSort==='recent'?'selected':''}>Recently added</option>
+      <option value="most-worn" ${STATE.closetSort==='most-worn'?'selected':''}>Most worn</option>
+      <option value="least-worn" ${STATE.closetSort==='least-worn'?'selected':''}>Least worn</option>
+      <option value="name" ${STATE.closetSort==='name'?'selected':''}>Name</option>
+    </select>
+  </div>
+  ${closetGridHTML()}
+  `;
+  return html;
+}
+
+/* =========================================================================
+   Item detail / edit screen
+   ========================================================================= */
+let ITEM_EDIT_MODE = false;
+function toggleItemFavorite(id){ const it=getItem(id); if(!it) return; it.isFavorite=!it.isFavorite; saveDB(); render(); }
+function setItemStatus(id, status){ const it=getItem(id); if(!it) return; it.status=status; saveDB(); render(); toast(`Marked ${STATUS_IDS.find(s=>s.id===status).label.toLowerCase()}`); }
+function deleteItemConfirm(id){ confirmAction('Remove this item?', 'It will be removed from your closet and any saved outfits.', 'Remove', `deleteItemNow('${id}')`); }
+function deleteItemNow(id){
+  DB.items = DB.items.filter(i=>i.id!==id);
+  DB.outfits.forEach(o=>{ o.items = o.items.filter(s=>s.itemId!==id); });
+  DB.outfits = DB.outfits.filter(o=>o.items.length>0);
+  saveDB(); toast('Item removed'); navTo('closet');
+}
+function buildOutfitWithItem(id){ STATE.genAnchorId=id; navTo('generate'); }
+function startItemEdit(){ ITEM_EDIT_MODE=true; render(); }
+function cancelItemEdit(){ ITEM_EDIT_MODE=false; render(); }
+function saveItemEdit(id){
+  const it = getItem(id); if(!it) return;
+  const f = document.getElementById('item-edit-form');
+  it.name = f.name.value.trim() || it.name;
+  it.brand = f.brand.value.trim() || null;
+  it.primaryColor = f.primaryColor.value;
+  it.secondaryColor = f.secondaryColor.value || null;
+  it.pattern = f.pattern.value;
+  it.material = f.material.value || null;
+  it.fit = f.fit.value || null;
+  it.formalityLevel = Number(f.formalityLevel.value);
+  it.notes = f.notes.value.trim() || null;
+  it.styles = Array.from(f.querySelectorAll('[data-styles]:checked')).map(x=>x.value);
+  it.seasons = Array.from(f.querySelectorAll('[data-seasons]:checked')).map(x=>x.value);
+  it.occasions = Array.from(f.querySelectorAll('[data-occasions]:checked')).map(x=>x.value);
+  saveDB();
+  ITEM_EDIT_MODE = false;
+  toast('Saved changes');
+  render();
+}
+function multiChipGroup(name, options, selected, labelFn){
+  labelFn = labelFn || cap;
+  return options.map(v=>`
+    <label class="chip small" style="cursor:pointer;">
+      <input type="checkbox" data-${name} value="${v}" ${selected.includes(v)?'checked':''} style="display:none;" onchange="this.parentElement.classList.toggle('selected', this.checked)">
+      <span style="${selected.includes(v)?'':''}">${labelFn(v)}</span>
+    </label>`).join('');
+}
+function multiChipGroupWired(name, options, selected){
+  // renders with initial 'selected' class applied server-side (string build)
+  return options.map(v=>`
+    <label class="chip small ${selected.includes(v)?'selected':''}" style="cursor:pointer;">
+      <input type="checkbox" data-${name} value="${v}" ${selected.includes(v)?'checked':''} style="display:none;" onchange="this.parentElement.classList.toggle('selected', this.checked)">
+      <span>${cap(v)}</span>
+    </label>`).join('');
+}
+
+function renderItemDetail(id){
+  const item = getItem(id);
+  if(!item) return `<div class="card"><p>Item not found.</p><button class="btn btn-secondary mt-4" onclick="navTo('closet')">Back to Closet</button></div>`;
+
+  if(ITEM_EDIT_MODE) return renderItemEdit(item);
+
+  const wearsRecent = DB.wear.filter(w=>{ const o=getOutfit(w.outfitId); return o && o.items.some(s=>s.itemId===id); }).slice(0,5);
+
+  return `
+  <button class="btn btn-ghost btn-sm" style="padding-left:0;margin-bottom:10px;" onclick="navTo('closet')">${icon('chevRight')} Back</button>
+  <div class="item-thumb" style="aspect-ratio:1/1;max-width:320px;margin:0 auto 18px;border-radius:24px;">
+    <img src="${item.imageUrl}" alt="${esc(item.name)}">
+    <button class="item-fav" style="width:38px;height:38px;" onclick="toggleItemFavorite('${item.id}')">${icon(item.isFavorite?'heartFill':'heart')}</button>
+  </div>
+  <div class="row between" style="align-items:flex-start;">
+    <div>
+      <h1 style="font-size:21px;font-weight:800;">${esc(item.name)}</h1>
+      <p class="small muted mt-2">${item.brand? esc(item.brand)+' \u00b7 ':''}${cap(item.subcategory)}</p>
+    </div>
+    ${statusBadgeHTML(item.status)}
+  </div>
+
+  <div class="row wrap" style="gap:6px;margin-top:14px;">
+    ${(item.styles||[]).map(s=>`<span class="chip small">${cap(s)}</span>`).join('')}
+  </div>
+
+  <div class="card mt-4">
+    <div class="stat-grid">
+      <div class="stat-card"><div class="n">${item.timesWorn||0}</div><div class="l">Times worn</div></div>
+      <div class="stat-card"><div class="n">${timeAgo(item.lastWorn)}</div><div class="l" style="font-size:9.5px;">Last worn</div></div>
+      <div class="stat-card"><div class="n">${formalityLabel(item.formalityLevel)}</div><div class="l" style="font-size:9px;">Formality</div></div>
+    </div>
+  </div>
+
+  <div class="card mt-4">
+    <div class="section-title"><h2>Details</h2></div>
+    <div style="display:flex;flex-direction:column;gap:10px;" class="small">
+      <div class="row between"><span class="muted">Color</span><span class="row" style="gap:6px;"><span class="swatch" style="width:16px;height:16px;background:${colorHex(item.primaryColor)};border-width:1px;"></span>${cap(item.primaryColor)}${item.secondaryColor?` / ${cap(item.secondaryColor)}`:''}</span></div>
+      <div class="row between"><span class="muted">Pattern</span><span>${cap(item.pattern)}</span></div>
+      <div class="row between"><span class="muted">Material</span><span>${item.material?cap(item.material):'\u2014'}</span></div>
+      <div class="row between"><span class="muted">Fit</span><span>${item.fit?cap(item.fit):'\u2014'}</span></div>
+      <div class="row between"><span class="muted">Occasions</span><span style="text-align:right;">${(item.occasions||[]).map(cap).join(', ')||'\u2014'}</span></div>
+      <div class="row between"><span class="muted">Seasons</span><span style="text-align:right;">${(item.seasons||[]).map(cap).join(', ')||'\u2014'}</span></div>
+      ${item.notes?`<div><span class="muted">Notes</span><p class="mt-2">${esc(item.notes)}</p></div>`:''}
+    </div>
+  </div>
+
+  <div class="card mt-4">
+    <div class="section-title"><h2>Laundry status</h2></div>
+    <div class="scrollx">
+      ${STATUS_IDS.map(s=>`<button class="chip small ${item.status===s.id?'selected':''}" onclick="setItemStatus('${item.id}','${s.id}')">${s.label}</button>`).join('')}
+    </div>
+  </div>
+
+  ${wearsRecent.length? `
+  <div class="card mt-4">
+    <div class="section-title"><h2>Recent wears</h2></div>
+    <div style="display:flex;flex-direction:column;gap:8px;">
+      ${wearsRecent.map(w=>`<div class="row between small"><span class="muted">${dayLabel(w.wornDate)}</span><span>${cap(w.occasion)}</span></div>`).join('')}
+    </div>
+  </div>` : ''}
+
+  <div class="row" style="gap:10px;margin-top:20px;">
+    <button class="btn btn-primary grow" onclick="buildOutfitWithItem('${item.id}')">${icon('wand')} Build outfit with this</button>
+  </div>
+  <div class="row" style="gap:10px;margin-top:10px;">
+    <button class="btn btn-secondary grow" onclick="startItemEdit()">${icon('edit')} Edit</button>
+    <button class="btn btn-danger btn-icon" onclick="deleteItemConfirm('${item.id}')" aria-label="Delete">${icon('trash')}</button>
+  </div>
+  `;
+}
+
+function renderItemEdit(item){
+  return `
+  <button class="btn btn-ghost btn-sm" style="padding-left:0;margin-bottom:10px;" onclick="cancelItemEdit()">${icon('x')} Cancel</button>
+  <h1 style="font-size:21px;font-weight:800;margin-bottom:16px;">Edit ${esc(item.name)}</h1>
+  <form id="item-edit-form" onsubmit="event.preventDefault(); saveItemEdit('${item.id}')">
+    <div class="field"><label class="field-label">Name</label><input class="input" name="name" value="${esc(item.name)}"></div>
+    <div class="field"><label class="field-label">Brand</label><input class="input" name="brand" value="${esc(item.brand||'')}"></div>
+
+    <div class="field"><label class="field-label">Primary color</label>
+      <div class="swatch-row">${COLORS.map(c=>`<span class="swatch ${item.primaryColor===c.id?'selected':''}" style="background:${c.hex};" data-color-input="primaryColor" data-val="${c.id}" onclick="pickSwatch(this)" title="${c.label}"></span>`).join('')}</div>
+      <input type="hidden" name="primaryColor" value="${item.primaryColor}">
+    </div>
+    <div class="field"><label class="field-label">Secondary color (optional)</label>
+      <div class="swatch-row"><span class="swatch ${!item.secondaryColor?'selected':''}" style="background:var(--surface2);display:grid;place-items:center;" data-color-input="secondaryColor" data-val="" onclick="pickSwatch(this)" title="None">${icon('x')}</span>${COLORS.map(c=>`<span class="swatch ${item.secondaryColor===c.id?'selected':''}" style="background:${c.hex};" data-color-input="secondaryColor" data-val="${c.id}" onclick="pickSwatch(this)" title="${c.label}"></span>`).join('')}</div>
+      <input type="hidden" name="secondaryColor" value="${item.secondaryColor||''}">
+    </div>
+
+    <div class="row" style="gap:12px;">
+      <div class="field grow"><label class="field-label">Pattern</label>
+        <select class="input" name="pattern">${PATTERN_IDS.map(p=>`<option value="${p}" ${item.pattern===p?'selected':''}>${cap(p)}</option>`).join('')}</select>
+      </div>
+      <div class="field grow"><label class="field-label">Material</label>
+        <select class="input" name="material"><option value="">\u2014</option>${MATERIAL_IDS.map(m=>`<option value="${m}" ${item.material===m?'selected':''}>${cap(m)}</option>`).join('')}</select>
+      </div>
+    </div>
+    <div class="row" style="gap:12px;">
+      <div class="field grow"><label class="field-label">Fit</label>
+        <select class="input" name="fit"><option value="">\u2014</option>${FIT_IDS.map(f=>`<option value="${f}" ${item.fit===f?'selected':''}>${cap(f)}</option>`).join('')}</select>
+      </div>
+      <div class="field grow"><label class="field-label">Formality</label>
+        <select class="input" name="formalityLevel">${FORMALITY_LEVELS.map(f=>`<option value="${f.level}" ${item.formalityLevel===f.level?'selected':''}>${f.label}</option>`).join('')}</select>
+      </div>
+    </div>
+
+    <div class="field"><label class="field-label">Styles</label><div class="row wrap" style="gap:6px;">${multiChipGroupWired('styles', STYLE_IDS, item.styles||[])}</div></div>
+    <div class="field"><label class="field-label">Occasions</label><div class="row wrap" style="gap:6px;">${multiChipGroupWired('occasions', OCCASION_IDS, item.occasions||[])}</div></div>
+    <div class="field"><label class="field-label">Seasons</label><div class="row wrap" style="gap:6px;">${multiChipGroupWired('seasons', SEASON_IDS, item.seasons||[])}</div></div>
+
+    <div class="field"><label class="field-label">Notes</label><textarea class="input" name="notes">${esc(item.notes||'')}</textarea></div>
+
+    <button type="submit" class="btn btn-primary btn-block btn-lg">${icon('check')} Save changes</button>
+  </form>`;
+}
+function pickSwatch(el){
+  const key = el.getAttribute('data-color-input');
+  const val = el.getAttribute('data-val');
+  const form = el.closest('form');
+  form.querySelector(`input[name="${key}"]`).value = val;
+  el.parentElement.querySelectorAll('.swatch').forEach(s=>s.classList.remove('selected'));
+  el.classList.add('selected');
+}
+
+/* =========================================================================
+   Add-item flow: photo -> category/subcategory -> AI-heuristic review
+   ========================================================================= */
+function resetAddFlow(){ STATE.addPhoto=null; STATE.addStep='photo'; STATE.addCategory=null; STATE.addSubcategory=null; STATE.addAnalysis=null; }
+function initAddScreen(){ if(!STATE.addStep) resetAddFlow(); }
+
+async function handleAddFile(input){
+  const file = input.files && input.files[0];
+  if(!file) return;
+  toast('Processing photo\u2026');
+  try{
+    const processed = await processClothingImage(file);
+    STATE.addPhoto = processed;
+    STATE.addStep = 'category';
+    render();
+  }catch(e){ toast('Could not read that photo'); }
+}
+function useNoPhoto(){
+  STATE.addPhoto = { dataUrl:null, dominantColor:'grey' };
+  STATE.addStep = 'category';
+  render();
+}
+function chooseAddCategory(cat){ STATE.addCategory=cat; STATE.addSubcategory=null; render(); }
+function chooseAddSubcategory(sub){
+  STATE.addSubcategory = sub;
+  const analysis = analyzeClothingItem({ category:STATE.addCategory, subcategory:sub, dominantColor: STATE.addPhoto.dominantColor, seedKey: uid() });
+  STATE.addAnalysis = analysis;
+  STATE.addStep = 'review';
+  render();
+}
+function backToPhotoStep(){ STATE.addStep='photo'; render(); }
+function backToCategoryStep(){ STATE.addStep='category'; render(); }
+
+function saveNewItem(){
+  const f = document.getElementById('add-review-form');
+  const category = STATE.addCategory, subcategory = STATE.addSubcategory;
+  const name = f.name.value.trim() || `${cap(f.primaryColor.value)} ${cap(subcategory)}`;
+  const item = {
+    id: uid(), name, imageUrl: STATE.addPhoto.dataUrl || placeholderImage(category, f.primaryColor.value, f.secondaryColor.value||null),
+    category, subcategory,
+    primaryColor: f.primaryColor.value, secondaryColor: f.secondaryColor.value || null,
+    pattern: f.pattern.value, material: f.material.value || null, fit: f.fit.value || null,
+    formalityLevel: Number(f.formalityLevel.value),
+    styles: Array.from(f.querySelectorAll('[data-styles]:checked')).map(x=>x.value),
+    seasons: Array.from(f.querySelectorAll('[data-seasons]:checked')).map(x=>x.value),
+    occasions: Array.from(f.querySelectorAll('[data-occasions]:checked')).map(x=>x.value),
+    brand: f.brand.value.trim() || null, status:'clean', notes: f.notes.value.trim() || null,
+    timesWorn:0, lastWorn:null, isFavorite:false, createdAt: new Date().toISOString(),
+  };
+  DB.items.push(item);
+  saveDB();
+  toast('Added to your closet');
+  resetAddFlow();
+  go('item', item.id);
+}
+
+function renderAdd(){
+  if(!STATE.addStep) resetAddFlow();
+  if(STATE.addStep==='category') return renderAddCategoryStep();
+  if(STATE.addStep==='review') return renderAddReviewStep();
+  return renderAddPhotoStep();
+}
+function renderAddPhotoStep(){
+  return `
+  <button class="btn btn-ghost btn-sm" style="padding-left:0;margin-bottom:10px;" onclick="navTo('closet')">${icon('x')} Cancel</button>
+  <h1 style="font-size:21px;font-weight:800;margin-bottom:4px;">Add clothing</h1>
+  <p class="small muted mt-2" style="margin-bottom:20px;">Snap or upload a photo \u2014 FitPick reads the dominant color straight off it.</p>
+  <label class="dropzone" style="display:block;margin-bottom:14px;">
+    <input type="file" accept="image/*" capture="environment" style="display:none;" onchange="handleAddFile(this)">
+    <div style="color:var(--accent);margin-bottom:10px;">${icon('camera')}</div>
+    <p class="bold small">Take a photo</p>
+    <p class="tiny muted mt-2">Use your camera</p>
+  </label>
+  <label class="dropzone" style="display:block;">
+    <input type="file" accept="image/*" style="display:none;" onchange="handleAddFile(this)">
+    <div style="color:var(--muted);margin-bottom:10px;">${icon('upload')}</div>
+    <p class="bold small">Upload a photo</p>
+    <p class="tiny muted mt-2">Choose from your device</p>
+  </label>
+  <button class="btn btn-ghost btn-sm" style="margin-top:16px;" onclick="useNoPhoto()">Skip photo, enter details manually ${icon('chevRight')}</button>
+  `;
+}
+function renderAddCategoryStep(){
+  const photo = STATE.addPhoto;
+  return `
+  <button class="btn btn-ghost btn-sm" style="padding-left:0;margin-bottom:10px;" onclick="backToPhotoStep()">${icon('chevRight')} Back</button>
+  ${photo.dataUrl? `<div class="item-thumb" style="aspect-ratio:1/1;max-width:220px;margin:0 auto 20px;border-radius:20px;"><img src="${photo.dataUrl}"></div>`:''}
+  <h2 style="font-size:17px;font-weight:800;margin-bottom:14px;text-align:center;">What kind of item is this?</h2>
+  <div class="grid-cats" style="margin-bottom:22px;">
+    ${CATEGORIES.map(c=>`<button class="cat-btn ${STATE.addCategory===c.id?'active':''}" onclick="chooseAddCategory('${c.id}')">${icon(c.icon)}<span>${c.label}</span></button>`).join('')}
+  </div>
+  ${STATE.addCategory? `
+    <h3 class="small bold muted" style="margin-bottom:10px;">Pick the closest match</h3>
+    <div class="row wrap" style="gap:8px;">
+      ${subcategoriesOf(STATE.addCategory).map(s=>`<button class="chip" onclick="chooseAddSubcategory('${s}')">${cap(s)}</button>`).join('')}
+    </div>
+  ` : ''}
+  `;
+}
+function renderAddReviewStep(){
+  const a = STATE.addAnalysis;
+  const dc = STATE.addPhoto.dominantColor;
+  return `
+  <button class="btn btn-ghost btn-sm" style="padding-left:0;margin-bottom:10px;" onclick="backToCategoryStep()">${icon('chevRight')} Back</button>
+  <div class="row" style="gap:14px;align-items:flex-start;margin-bottom:18px;">
+    <div class="item-thumb" style="width:90px;height:90px;flex-shrink:0;border-radius:16px;">
+      <img src="${STATE.addPhoto.dataUrl || placeholderImage(STATE.addCategory, a.primaryColor)}">
+    </div>
+    <div>
+      <h1 style="font-size:18px;font-weight:800;">Review details</h1>
+      <p class="tiny muted mt-2">FitPick guessed these from the photo \u2014 tweak anything that's off.</p>
+    </div>
+  </div>
+  <form id="add-review-form" onsubmit="event.preventDefault(); saveNewItem();">
+    <div class="field"><label class="field-label">Name</label><input class="input" name="name" value="${esc(a.name)}"></div>
+    <div class="field"><label class="field-label">Brand (optional)</label><input class="input" name="brand" placeholder="e.g. Uniqlo"></div>
+
+    <div class="field"><label class="field-label">Primary color</label>
+      <div class="swatch-row">${COLORS.map(c=>`<span class="swatch ${a.primaryColor===c.id?'selected':''}" style="background:${c.hex};" data-color-input="primaryColor" data-val="${c.id}" onclick="pickSwatch(this)" title="${c.label}"></span>`).join('')}</div>
+      <input type="hidden" name="primaryColor" value="${a.primaryColor}">
+      ${dc? `<p class="hint">Detected from photo: ${cap(dc)}</p>`:''}
+    </div>
+    <div class="field"><label class="field-label">Secondary color (optional)</label>
+      <div class="swatch-row"><span class="swatch ${!a.secondaryColor?'selected':''}" style="background:var(--surface2);display:grid;place-items:center;" data-color-input="secondaryColor" data-val="" onclick="pickSwatch(this)" title="None">${icon('x')}</span>${COLORS.map(c=>`<span class="swatch ${a.secondaryColor===c.id?'selected':''}" style="background:${c.hex};" data-color-input="secondaryColor" data-val="${c.id}" onclick="pickSwatch(this)" title="${c.label}"></span>`).join('')}</div>
+      <input type="hidden" name="secondaryColor" value="${a.secondaryColor||''}">
+    </div>
+
+    <div class="row" style="gap:12px;">
+      <div class="field grow"><label class="field-label">Pattern</label>
+        <select class="input" name="pattern">${PATTERN_IDS.map(p=>`<option value="${p}" ${a.pattern===p?'selected':''}>${cap(p)}</option>`).join('')}</select>
+      </div>
+      <div class="field grow"><label class="field-label">Material</label>
+        <select class="input" name="material"><option value="">\u2014</option>${MATERIAL_IDS.map(m=>`<option value="${m}" ${a.material===m?'selected':''}>${cap(m)}</option>`).join('')}</select>
+      </div>
+    </div>
+    <div class="row" style="gap:12px;">
+      <div class="field grow"><label class="field-label">Fit</label>
+        <select class="input" name="fit"><option value="">\u2014</option>${FIT_IDS.map(f=>`<option value="${f}" ${a.fit===f?'selected':''}>${cap(f)}</option>`).join('')}</select>
+      </div>
+      <div class="field grow"><label class="field-label">Formality</label>
+        <select class="input" name="formalityLevel">${FORMALITY_LEVELS.map(f=>`<option value="${f.level}" ${a.formalityLevel===f.level?'selected':''}>${f.label}</option>`).join('')}</select>
+      </div>
+    </div>
+
+    <div class="field"><label class="field-label">Styles</label><div class="row wrap" style="gap:6px;">${multiChipGroupWired('styles', STYLE_IDS, a.styles||[])}</div></div>
+    <div class="field"><label class="field-label">Occasions</label><div class="row wrap" style="gap:6px;">${multiChipGroupWired('occasions', OCCASION_IDS, a.occasions||[])}</div></div>
+    <div class="field"><label class="field-label">Seasons</label><div class="row wrap" style="gap:6px;">${multiChipGroupWired('seasons', SEASON_IDS, a.seasons||[])}</div></div>
+
+    <div class="field"><label class="field-label">Notes (optional)</label><textarea class="input" name="notes" placeholder="Fit notes, care instructions\u2026"></textarea></div>
+
+    <button type="submit" class="btn btn-primary btn-block btn-lg">${icon('check')} Add to closet</button>
+  </form>
+  `;
+}
+
+/* =========================================================================
+   Generate screen — full stylist brief + scored results
+   ========================================================================= */
+function setGenOccasion(id){ STATE.genOccasion = STATE.genOccasion===id?null:id; render(); }
+function setGenStyle(id){ STATE.genStyle = STATE.genStyle===id?null:id; render(); }
+function setGenWeather(id){ STATE.genWeather = STATE.genWeather===id?null:id; render(); }
+function clearGenAnchor(){ STATE.genAnchorId=null; render(); }
+function openAnchorPicker(){
+  const avail = availableItems(DB.items);
+  openSheet(`
+    <div class="sheet-handle"></div>
+    <div class="sheet-head"><h3>Choose a starting piece</h3><button class="btn-icon btn-ghost" onclick="closeSheet()">${icon('x')}</button></div>
+    <div class="item-grid" style="max-height:60vh;overflow-y:auto;">
+      ${avail.map(i=>`
+        <div class="item-tile" onclick="STATE.genAnchorId='${i.id}'; closeSheet(); render();">
+          <div class="item-thumb"><img src="${i.imageUrl}" alt="${esc(i.name)}"></div>
+          <p class="name">${esc(i.name)}</p>
+        </div>`).join('') || '<p class="small muted">No available items.</p>'}
+    </div>
+  `);
+}
+function runGenerate(){
+  const missing = missingCoreCategories(DB.items);
+  if(missing.length){ STATE.genMissing=missing; STATE.genResults=[]; render(); return; }
+  const criteria = { occasion: STATE.genOccasion||undefined, style: STATE.genStyle||undefined, weather: STATE.genWeather||undefined, startingItemId: STATE.genAnchorId||undefined, seed:'gen:'+Date.now() };
+  const res = generateOutfits({ items: DB.items, criteria, preferences: enginePrefs(), recent: recentCombos(), maxOptions:3 });
+  STATE.genResults = res.outfits;
+  STATE.genMissing = res.missingCategories;
+  STATE.genExpanded = {};
+  if(!res.outfits.length && !res.missingCategories.length) toast('Nothing clean is available right now');
+  render();
+  setTimeout(()=>{ const el=document.getElementById('gen-results'); if(el) el.scrollIntoView({behavior:'smooth', block:'start'}); }, 60);
+}
+function saveGenResult(idx){ const g=STATE.genResults[idx]; if(!g) return; saveGeneratedOutfit(g, `${cap(g.style||'')} ${cap(g.occasion||'')}`.trim()); toast('Saved to your outfits'); }
+function wearGenResult(idx){ const g=STATE.genResults[idx]; if(!g) return; const saved=saveGeneratedOutfit(g, `${cap(g.style||'')} ${cap(g.occasion||'')}`.trim()); wearOutfit(saved.id,{occasion:g.occasion}); toast('Marked as worn today'); STATE.genResults=[]; render(); }
+
+function renderGenerate(){
+  const anchor = STATE.genAnchorId ? getItem(STATE.genAnchorId) : null;
+  let html = `
+  <header style="margin-bottom:20px;">
+    <h1 style="font-size:22px;font-weight:800;">Generate an outfit</h1>
+    <p class="small muted mt-2">Tell the stylist what you need \u2014 every option is scored on color, occasion, style, formality and weather.</p>
+  </header>`;
+
+  if(!DB.items.length){
+    return html + `<div class="card"><p class="small muted">Add a few pieces to your closet first.</p><button class="btn btn-primary mt-4" onclick="navTo('add')">${icon('plus')} Add Clothing</button></div>`;
+  }
+
+  html += `
+  <section class="mt-4">
+    <div class="section-title"><h2>Occasion</h2></div>
+    <div class="scrollx">${DRESS_ME_OCCASIONS.map(o=>`<button class="chip ${STATE.genOccasion===o.id?'selected':''}" onclick="setGenOccasion('${o.id}')">${o.label}</button>`).join('')}</div>
+  </section>
+  <section class="mt-4">
+    <div class="section-title"><h2>Style</h2></div>
+    <div class="scrollx">${STYLE_IDS.map(s=>`<button class="chip ${STATE.genStyle===s?'selected':''}" onclick="setGenStyle('${s}')">${cap(s)}</button>`).join('')}</div>
+  </section>
+  <section class="mt-4">
+    <div class="section-title"><h2>Weather</h2></div>
+    <div class="scrollx">${WEATHER_IDS.map(w=>`<button class="chip ${STATE.genWeather===w.id?'selected':''}" onclick="setGenWeather('${w.id}')">${w.label}</button>`).join('')}</div>
+  </section>
+  <section class="mt-4">
+    <div class="section-title"><h2>Starting piece (optional)</h2></div>
+    ${anchor? `
+      <div class="card row between" style="padding:10px 12px;">
+        <div class="row" style="gap:10px;"><div class="item-thumb" style="width:46px;height:46px;border-radius:12px;"><img src="${anchor.imageUrl}"></div><span class="small bold">${esc(anchor.name)}</span></div>
+        <button class="btn-icon btn-ghost" onclick="clearGenAnchor()">${icon('x')}</button>
+      </div>` : `<button class="btn btn-secondary btn-block" onclick="openAnchorPicker()">${icon('plus')} Anchor around a specific piece</button>`}
+  </section>
+
+  <button class="btn btn-primary btn-lg btn-block mt-6" onclick="runGenerate()">${icon('wand')} Generate outfits</button>
+
+  <div id="gen-results" class="mt-6">
+  ${STATE.genMissing.length? `<div class="card"><p class="small muted">Add ${STATE.genMissing.map(cap).join(', ')} to your closet to unlock outfit suggestions.</p></div>` : ''}
+  ${STATE.genResults.map((g,idx)=>`<div class="mt-4">${generatedOutfitCardHTML(g, 'gen'+idx, { onSave:`saveGenResult(${idx})`, onWear:`wearGenResult(${idx})` })}</div>`).join('')}
+  </div>
+  `;
+  return html;
+}
+
+/* =========================================================================
+   Outfits screen — saved outfits
+   ========================================================================= */
+function toggleOutfitFavorite(id){ const o=getOutfit(id); if(!o) return; o.isFavorite=!o.isFavorite; saveDB(); render(); }
+function deleteOutfitConfirm(id){ confirmAction('Delete this outfit?', 'This removes the saved combination \u2014 the individual items stay in your closet.', 'Delete', `deleteOutfitNow('${id}')`); }
+function deleteOutfitNow(id){ DB.outfits = DB.outfits.filter(o=>o.id!==id); saveDB(); toast('Outfit deleted'); navTo('outfits'); }
+function wearOutfitNow(id){ wearOutfit(id); toast('Marked as worn today'); render(); }
+
+function savedOutfitCardHTML(outfit){
+  const items = outfitItemsResolved(outfit);
+  return `
+  <div class="card">
+    <div class="row between" style="margin-bottom:12px;">
+      <div class="row" style="gap:8px;">
+        ${matchBadgeHTML(matchLabel(outfit.compatibilityScore))}
+        ${outfit.isFavorite? `<span style="color:var(--accent);">${icon('heartFill')}</span>`:''}
+      </div>
+      <button class="btn-icon btn-ghost" onclick="toggleOutfitFavorite('${outfit.id}')" aria-label="Favorite">${icon(outfit.isFavorite?'heartFill':'heart')}</button>
+    </div>
+    <button style="all:unset;cursor:pointer;display:block;width:100%;" onclick="go('outfit','${outfit.id}')">
+      ${outfitVisualHTML(items, true)}
+      <p class="bold small mt-2">${esc(outfit.name)}</p>
+      <p class="tiny faint mt-2">${cap(outfit.occasion)} \u00b7 ${cap(outfit.style||'')}${outfit.lastWorn? ` \u00b7 worn ${timeAgo(outfit.lastWorn)}`:''}</p>
+    </button>
+    <div class="row" style="gap:8px;margin-top:14px;">
+      <button class="btn btn-secondary btn-sm grow" onclick="wearOutfitNow('${outfit.id}')">${icon('check')} Wear today</button>
+      <button class="btn btn-danger btn-sm btn-icon" onclick="deleteOutfitConfirm('${outfit.id}')" aria-label="Delete">${icon('trash')}</button>
+    </div>
+  </div>`;
+}
+function renderOutfits(){
+  let html = `<header class="row between" style="margin-bottom:20px;">
+    <h1 style="font-size:22px;font-weight:800;">Outfits</h1>
+    <button class="btn btn-primary btn-sm" onclick="navTo('generate')">${icon('wand')} Generate</button>
+  </header>`;
+  if(!DB.outfits.length){
+    return html + `<div class="card pad-0"><div class="empty">
+      <div class="ico">${icon('layers')}</div>
+      <h3>No saved outfits yet</h3>
+      <p>Generate a look and save the ones you like.</p>
+      <button class="btn btn-primary" onclick="navTo('generate')">${icon('wand')} Generate an outfit</button>
+    </div></div>`;
+  }
+  const sorted = [...DB.outfits].sort((a,b)=> (b.isFavorite-a.isFavorite) || (new Date(b.createdAt)-new Date(a.createdAt)));
+  html += `<div style="display:flex;flex-direction:column;gap:14px;">${sorted.map(savedOutfitCardHTML).join('')}</div>`;
+  return html;
+}
+
+/* =========================================================================
+   Outfit detail screen
+   ========================================================================= */
+function renderOutfitDetail(id){
+  const outfit = getOutfit(id);
+  if(!outfit) return `<div class="card"><p>Outfit not found.</p><button class="btn btn-secondary mt-4" onclick="navTo('outfits')">Back to Outfits</button></div>`;
+  const items = outfitItemsResolved(outfit);
+  const history = DB.wear.filter(w=>w.outfitId===id).slice(0,8);
+  return `
+  <button class="btn btn-ghost btn-sm" style="padding-left:0;margin-bottom:10px;" onclick="navTo('outfits')">${icon('chevRight')} Back</button>
+  <div class="row between" style="align-items:flex-start;margin-bottom:14px;">
+    <div>
+      <h1 style="font-size:21px;font-weight:800;">${esc(outfit.name)}</h1>
+      <p class="small muted mt-2">${cap(outfit.occasion)} \u00b7 ${cap(outfit.style||'')}${outfit.weather? ` \u00b7 ${cap(outfit.weather)} weather`:''}</p>
+    </div>
+    <button class="btn-icon btn-ghost" style="border:1px solid var(--line);" onclick="toggleOutfitFavorite('${outfit.id}')">${icon(outfit.isFavorite?'heartFill':'heart')}</button>
+  </div>
+  ${matchBadgeHTML(matchLabel(outfit.compatibilityScore))}
+  <div class="mt-4">${outfitVisualHTML(items, false)}</div>
+  <div class="row" style="gap:10px;margin-top:20px;">
+    <button class="btn btn-primary grow" onclick="wearOutfitNow('${outfit.id}')">${icon('check')} Wear it today</button>
+    <button class="btn btn-danger btn-icon" onclick="deleteOutfitConfirm('${outfit.id}')" aria-label="Delete">${icon('trash')}</button>
+  </div>
+  ${history.length? `
+  <div class="card mt-6">
+    <div class="section-title"><h2>Wear history</h2></div>
+    <div style="display:flex;flex-direction:column;gap:8px;">
+      ${history.map(w=>`<div class="row between small"><span class="muted">${dayLabel(w.wornDate)}</span><span>${cap(w.occasion)}${w.rating?` \u00b7 ${'\u2605'.repeat(w.rating)}`:''}</span></div>`).join('')}
+    </div>
+  </div>`:''}
+  <div class="mt-6">
+    <div class="section-title"><h2>Pieces in this look</h2></div>
+    <div class="item-grid">${items.map(s=>itemTileHTML(s.item)).join('')}</div>
+  </div>
+  `;
+}
+
+/* =========================================================================
+   Profile screen
+   ========================================================================= */
+function toggleProfileChip(field, list, value){
+  const p = DB.profile.preferences;
+  const arr = p[list] || (p[list]=[]);
+  const i = arr.indexOf(value);
+  if(i>=0) arr.splice(i,1); else arr.push(value);
+  saveDB(); render();
+}
+function saveProfileBasics(){
+  const f = document.getElementById('profile-form');
+  DB.profile.name = f.name.value.trim() || 'You';
+  DB.profile.preferredStyle = f.preferredStyle.value;
+  DB.profile.preferences.preferredFit = f.preferredFit.value;
+  saveDB();
+  toast('Profile updated');
+  render();
+}
+function clearAllDataConfirm(){ confirmAction('Clear all data?', 'This removes every item, outfit and wear record from this browser. This can\u2019t be undone.', 'Clear everything', 'clearAllDataNow'); }
+function clearAllDataNow(){ DB = freshDB(); saveDB(); toast('Closet cleared'); navTo('home'); }
+
+function renderProfile(){
+  const p = DB.profile;
+  const summary = closetSummary();
+  const insights = buildInsights(DB.items);
+  return `
+  <header class="row" style="gap:14px;margin-bottom:22px;">
+    <div class="avatar gradient-accent" style="width:56px;height:56px;font-size:20px;">${esc((p.name||'A').charAt(0).toUpperCase())}</div>
+    <div><h1 style="font-size:21px;font-weight:800;">${esc(p.name||'You')}</h1><p class="small muted mt-2">${p.preferredStyle? cap(p.preferredStyle)+' style':'Style not set'}</p></div>
+  </header>
+
+  <div class="stat-grid mt-4">
+    <div class="stat-card"><div class="n">${summary.total}</div><div class="l">Pieces</div></div>
+    <div class="stat-card"><div class="n">${DB.outfits.length}</div><div class="l">Outfits</div></div>
+    <div class="stat-card"><div class="n">${DB.wear.length}</div><div class="l">Wears logged</div></div>
+  </div>
+
+  <div class="card mt-6">
+    <div class="section-title"><h2>Basics</h2></div>
+    <form id="profile-form" onsubmit="event.preventDefault(); saveProfileBasics();">
+      <div class="field"><label class="field-label">Name</label><input class="input" name="name" value="${esc(p.name||'')}"></div>
+      <div class="row" style="gap:12px;">
+        <div class="field grow"><label class="field-label">Preferred style</label>
+          <select class="input" name="preferredStyle"><option value="">No preference</option>${STYLE_IDS.map(s=>`<option value="${s}" ${p.preferredStyle===s?'selected':''}>${cap(s)}</option>`).join('')}</select>
+        </div>
+        <div class="field grow"><label class="field-label">Preferred fit</label>
+          <select class="input" name="preferredFit"><option value="">No preference</option>${FIT_IDS.map(f=>`<option value="${f}" ${p.preferences.preferredFit===f?'selected':''}>${cap(f)}</option>`).join('')}</select>
+        </div>
+      </div>
+      <button type="submit" class="btn btn-primary btn-block">${icon('check')} Save</button>
+    </form>
+  </div>
+
+  <div class="card mt-4">
+    <div class="section-title"><h2>Favorite colors</h2></div>
+    <div class="swatch-row">${COLORS.map(c=>`<span class="swatch ${p.preferences.favoriteColors.includes(c.id)?'selected':''}" style="background:${c.hex};" title="${c.label}" onclick="toggleProfileChip('favoriteColors','favoriteColors','${c.id}')"></span>`).join('')}</div>
+  </div>
+  <div class="card mt-4">
+    <div class="section-title"><h2>Colors to avoid</h2></div>
+    <div class="swatch-row">${COLORS.map(c=>`<span class="swatch ${p.preferences.avoidColors.includes(c.id)?'selected':''}" style="background:${c.hex};" title="${c.label}" onclick="toggleProfileChip('avoidColors','avoidColors','${c.id}')"></span>`).join('')}</div>
+  </div>
+  <div class="card mt-4">
+    <div class="section-title"><h2>Favorite styles</h2></div>
+    <div class="row wrap" style="gap:8px;">${STYLE_IDS.map(s=>`<button class="chip small ${p.preferences.favoriteStyles.includes(s)?'selected':''}" onclick="toggleProfileChip('favoriteStyles','favoriteStyles','${s}')">${cap(s)}</button>`).join('')}</div>
+  </div>
+
+  ${insights.length? `
+  <div class="card mt-4">
+    <div class="section-title"><h2>Wardrobe insights</h2></div>
+    <div style="display:flex;flex-direction:column;gap:14px;">
+      ${insights.map(i=>`<div class="row" style="gap:12px;"><div style="width:34px;height:34px;border-radius:11px;background:var(--surface2);display:grid;place-items:center;color:var(--accent);flex-shrink:0;">${icon(i.icon)}</div><p class="small" style="line-height:1.5;">${esc(i.text)}</p></div>`).join('')}
+    </div>
+  </div>`:''}
+
+  <div class="card mt-4">
+    <div class="section-title"><h2>Appearance</h2></div>
+    <button class="btn btn-secondary btn-block" onclick="toggleTheme()">${icon(p.theme==='light'?'moon':'sun')} Switch to ${p.theme==='light'?'dark':'light'} mode</button>
+  </div>
+
+  <div class="card mt-4">
+    <div class="section-title"><h2>Data</h2></div>
+    <p class="small muted" style="margin-bottom:12px;">Everything is stored only in this browser \u2014 nothing is uploaded anywhere.</p>
+    ${!summary.total? `<button class="btn btn-secondary btn-block" style="margin-bottom:10px;" onclick="loadSamples()">Load sample wardrobe</button>`:''}
+    <button class="btn btn-danger btn-block" onclick="clearAllDataConfirm()">${icon('trash')} Clear all data</button>
+  </div>
+  `;
+}
+
+/* =========================================================================
+   Init
+   ========================================================================= */
+function init(){
+  loadDB();
+  document.documentElement.dataset.theme = DB.profile.theme || 'dark';
+  if(!location.hash) location.hash = '#/home';
+  render();
+}
+document.addEventListener('DOMContentLoaded', init);
+</script>
+</body>
+</html>
