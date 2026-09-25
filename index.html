@@ -310,6 +310,115 @@ svg.i{ width:1em; height:1em; stroke:currentColor; fill:none; stroke-width:2; st
    ========================================================================= */
 const SUPABASE_URL = "https://tsrmthpmpgfgipklbglm.supabase.co";
 const SUPABASE_ANON_KEY = "sb_publishable_QPDkTEhDTgHTJbxqairAtw_UnBVRRru";
+
+
+/* =========================================================================
+   FitPick Cloud Sync — Supabase Database + Storage
+   -------------------------------------------------------------------------
+   Uses one row per authenticated user in `fitpick_user_data` and stores
+   clothing photos in the private `fitpick-images` bucket.
+   ========================================================================= */
+const CLOUD_TABLE = "fitpick_user_data";
+const CLOUD_BUCKET = "fitpick-images";
+let CLOUD_SYNC_ENABLED = true;
+let CLOUD_SYNC_TIMER = null;
+let CLOUD_LAST_ERROR = null;
+
+function currentUserId(){
+  return (typeof AUTH !== "undefined" && AUTH.user && AUTH.user.id) ? AUTH.user.id : null;
+}
+
+function cloudLocalKey(){
+  const uid = currentUserId();
+  return uid ? `fitpick_db_v1_${uid}` : "fitpick_db_v1_guest";
+}
+
+async function loadCloudDB(){
+  const uid = currentUserId();
+  if(!uid || !SB) return null;
+  try{
+    const { data, error } = await SB
+      .from(CLOUD_TABLE)
+      .select("data")
+      .eq("user_id", uid)
+      .maybeSingle();
+    if(error) throw error;
+    CLOUD_LAST_ERROR = null;
+    return data && data.data ? data.data : null;
+  }catch(err){
+    console.warn("FitPick cloud load failed:", err);
+    CLOUD_LAST_ERROR = err;
+    return null;
+  }
+}
+
+async function saveCloudDB(){
+  const uid = currentUserId();
+  if(!uid || !SB || !DB || !CLOUD_SYNC_ENABLED) return false;
+  try{
+    const payload = {
+      user_id: uid,
+      data: DB,
+      updated_at: new Date().toISOString()
+    };
+    const { error } = await SB
+      .from(CLOUD_TABLE)
+      .upsert(payload, { onConflict: "user_id" });
+    if(error) throw error;
+    CLOUD_LAST_ERROR = null;
+    return true;
+  }catch(err){
+    console.warn("FitPick cloud save failed:", err);
+    CLOUD_LAST_ERROR = err;
+    return false;
+  }
+}
+
+function scheduleCloudSave(){
+  clearTimeout(CLOUD_SYNC_TIMER);
+  CLOUD_SYNC_TIMER = setTimeout(()=>{ saveCloudDB(); }, 450);
+}
+
+function dataUrlToBlob(dataUrl){
+  const [meta, data] = dataUrl.split(",");
+  const mime = (meta.match(/data:([^;]+)/)||[])[1] || "image/jpeg";
+  const binary = atob(data);
+  const bytes = new Uint8Array(binary.length);
+  for(let i=0;i<binary.length;i++) bytes[i] = binary.charCodeAt(i);
+  return new Blob([bytes], { type:mime });
+}
+
+async function uploadClothingImage(dataUrl){
+  const uid = currentUserId();
+  if(!uid || !SB || !dataUrl || !dataUrl.startsWith("data:")) return dataUrl;
+  const ext = dataUrl.startsWith("data:image/png") ? "png" : "jpg";
+  const path = `${uid}/${Date.now()}-${Math.random().toString(36).slice(2,10)}.${ext}`;
+  try{
+    const blob = dataUrlToBlob(dataUrl);
+    const { error: uploadError } = await SB.storage
+      .from(CLOUD_BUCKET)
+      .upload(path, blob, { contentType: blob.type || "image/jpeg", upsert:false });
+    if(uploadError) throw uploadError;
+
+    // Keep bucket private. Use a long-lived signed URL for convenience in this
+    // single-file MVP; refresh can be added later if desired.
+    const { data: signed, error: signedError } = await SB.storage
+      .from(CLOUD_BUCKET)
+      .createSignedUrl(path, 60 * 60 * 24 * 365);
+    if(signedError) throw signedError;
+    return signed.signedUrl;
+  }catch(err){
+    console.warn("Clothing image upload failed; keeping local image:", err);
+    return dataUrl;
+  }
+}
+
+async function deleteCloudImageByUrl(url){
+  // Signed URLs don't expose a safe canonical path reliably enough for deletion.
+  // We intentionally leave deletion as a future cleanup enhancement.
+  return false;
+}
+
 const SUPABASE_CONFIGURED =
   SUPABASE_URL.startsWith("https://") &&
   !SUPABASE_URL.includes("YOUR_SUPABASE") &&
@@ -501,9 +610,9 @@ function setDBKeyForUser(user){
   DB_KEY = user ? `fitpick_db_v1_${user.id}` : "fitpick_db_v1_guest";
 }
 
-function initializeUserDB(){
+async function initializeUserDB(){
   setDBKeyForUser(AUTH.user);
-  loadDB();
+  await hydrateUserData();
   if(DB && DB.profile){
     if(!DB.profile.name || DB.profile.name === "Alex" || DB.profile.name === "You") DB.profile.name = authUserName();
     DB.profile.email = AUTH.user ? AUTH.user.email : "";
@@ -525,11 +634,11 @@ async function initAuth(){
   if(error) console.warn("Auth session check failed:", error.message);
   AUTH.session = session || null;
   AUTH.user = session && session.user ? session.user : null;
-  if(AUTH.user) initializeUserDB();
+  if(AUTH.user) await initializeUserDB();
   AUTH.loading = false;
   render();
 
-  SB.auth.onAuthStateChange((event, sessionNow)=>{
+  SB.auth.onAuthStateChange(async (event, sessionNow)=>{
     AUTH.session = sessionNow || null;
     AUTH.user = sessionNow && sessionNow.user ? sessionNow.user : null;
     AUTH.busy = false;
@@ -540,7 +649,7 @@ async function initAuth(){
       return;
     }
     if(AUTH.user){
-      initializeUserDB();
+      await initializeUserDB();
       AUTH.mode = "signin";
       authSetMessage("");
       if(!location.hash || location.hash.startsWith("#/auth")) location.hash = "#/home";
@@ -1147,15 +1256,23 @@ function freshDB(){
 }
 let DB = null;
 function loadDB(){
-  try{ const raw = localStorage.getItem(DB_KEY); DB = raw ? JSON.parse(raw) : freshDB(); }
-  catch(e){ DB = freshDB(); }
+  try{
+    const raw = localStorage.getItem(cloudLocalKey());
+    DB = raw ? JSON.parse(raw) : freshDB();
+  }catch(e){
+    DB = freshDB();
+  }
   if(!DB.profile) DB.profile = freshDB().profile;
   if(!DB.profile.preferences) DB.profile.preferences = freshDB().profile.preferences;
   return DB;
 }
 function saveDB(){
-  try{ localStorage.setItem(DB_KEY, JSON.stringify(DB)); }
-  catch(e){ toast('Storage is full \u2014 try removing an item or a photo.'); }
+  try{
+    localStorage.setItem(cloudLocalKey(), JSON.stringify(DB));
+  }catch(e){
+    toast('Storage is full — your cloud copy will still be attempted.');
+  }
+  scheduleCloudSave();
 }
 
 function getItem(id){ return DB.items.find(i=>i.id===id); }
@@ -1890,12 +2007,17 @@ function chooseAddSubcategory(sub){
 function backToPhotoStep(){ STATE.addStep='photo'; render(); }
 function backToCategoryStep(){ STATE.addStep='category'; render(); }
 
-function saveNewItem(){
+let SAVING_NEW_ITEM = false;
+async function saveNewItem(){
+  if(SAVING_NEW_ITEM) return;
+  SAVING_NEW_ITEM = true;
   const f = document.getElementById('add-review-form');
   const category = STATE.addCategory, subcategory = STATE.addSubcategory;
   const name = f.name.value.trim() || `${cap(f.primaryColor.value)} ${cap(subcategory)}`;
   const item = {
-    id: uid(), name, imageUrl: STATE.addPhoto.dataUrl || placeholderImage(category, f.primaryColor.value, f.secondaryColor.value||null),
+    id: uid(), name, imageUrl: await uploadClothingImage(
+      STATE.addPhoto.dataUrl || placeholderImage(category, f.primaryColor.value, f.secondaryColor.value||null)
+    ),
     category, subcategory,
     primaryColor: f.primaryColor.value, secondaryColor: f.secondaryColor.value || null,
     pattern: f.pattern.value, material: f.material.value || null, fit: f.fit.value || null,
@@ -1911,6 +2033,7 @@ function saveNewItem(){
   toast('Added to your closet');
   resetAddFlow();
   go('item', item.id);
+  SAVING_NEW_ITEM = false;
 }
 
 function renderAdd(){
@@ -2199,6 +2322,12 @@ function saveProfileBasics(){
 function clearAllDataConfirm(){ confirmAction('Clear all data?', 'This removes every item, outfit and wear record from this browser. This can\u2019t be undone.', 'Clear everything', 'clearAllDataNow'); }
 function clearAllDataNow(){ DB = freshDB(); saveDB(); toast('Closet cleared'); navTo('home'); }
 
+async function manualCloudSync(){
+  const ok = await saveCloudDB();
+  toast(ok ? 'Cloud sync complete' : 'Cloud sync unavailable — using local copy');
+  render();
+}
+
 function renderProfile(){
   const p = DB.profile;
   const summary = closetSummary();
@@ -2259,6 +2388,17 @@ function renderProfile(){
     <button class="btn btn-danger btn-block mt-4" onclick="signOutFitPick()">Sign Out</button>
   </div>
 
+
+  <div class="card mt-4">
+    <div class="section-title"><h2>Cloud sync</h2></div>
+    <p class="small muted" style="margin-bottom:10px;">Your wardrobe is synced to your FitPick account when Supabase is available.</p>
+    <div class="row between small">
+      <span class="muted">Status</span>
+      <span class="badge ${CLOUD_LAST_ERROR?'badge-warn':'badge-success'}">${CLOUD_LAST_ERROR?'Local fallback':'Synced'}</span>
+    </div>
+    <button class="btn btn-secondary btn-block mt-4" onclick="manualCloudSync()">Sync now</button>
+  </div>
+
   <div class="card mt-4">
     <div class="section-title"><h2>Appearance</h2></div>
     <button class="btn btn-secondary btn-block" onclick="toggleTheme()">${icon(p.theme==='light'?'moon':'sun')} Switch to ${p.theme==='light'?'dark':'light'} mode</button>
@@ -2266,12 +2406,44 @@ function renderProfile(){
 
   <div class="card mt-4">
     <div class="section-title"><h2>Data</h2></div>
-    <p class="small muted" style="margin-bottom:12px;">Wardrobe data in this single-file build is stored only in this browser and separated by signed-in account.</p>
+    <p class="small muted" style="margin-bottom:12px;">Your wardrobe is saved to your FitPick cloud account when Supabase is available, with a browser cache for faster loading and offline fallback.</p>
     
     <button class="btn btn-danger btn-block" onclick="clearAllDataConfirm()">${icon('trash')} Clear all data</button>
   </div>
   `;
 }
+
+
+async function hydrateUserData(){
+  // Always start with this user's local cache for fast rendering/offline fallback.
+  loadDB();
+
+  // Migrate the old pre-auth local DB once, if present and the user has no scoped data.
+  try{
+    const scopedExists = localStorage.getItem(cloudLocalKey());
+    const legacy = localStorage.getItem('fitpick_db_v1');
+    if(!scopedExists && legacy){
+      const parsed = JSON.parse(legacy);
+      if(parsed && typeof parsed === "object"){
+        DB = parsed;
+        localStorage.setItem(cloudLocalKey(), JSON.stringify(DB));
+      }
+    }
+  }catch(e){}
+
+  // Cloud is the source of truth when available.
+  const cloud = await loadCloudDB();
+  if(cloud && typeof cloud === "object"){
+    DB = cloud;
+    if(!DB.profile) DB.profile = freshDB().profile;
+    if(!DB.profile.preferences) DB.profile.preferences = freshDB().profile.preferences;
+    try{ localStorage.setItem(cloudLocalKey(), JSON.stringify(DB)); }catch(e){}
+  }else{
+    // First cloud save for new/existing users.
+    await saveCloudDB();
+  }
+}
+
 
 /* =========================================================================
    Init
