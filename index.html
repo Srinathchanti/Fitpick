@@ -1213,55 +1213,6 @@ function saveGeneratedOutfit(gen, name){
   return outfit;
 }
 
-/* ---------------------------------------------------------------------- *
- * Sample wardrobe — ten pieces + three outfits + wear history, so the app
- * is never empty on first look. Photos are tinted garment silhouettes.
- * ---------------------------------------------------------------------- */
-const DEMO_ITEMS = [
-  { name:'White Oxford Shirt', category:'tops', subcategory:'shirt', primary:'white', pattern:'solid', styles:['smart casual','classic'], seasons:['spring','summer','fall'], occasions:['office','date','dinner','casual'], brand:'Brooks Brothers', material:'cotton', fit:'regular', timesWorn:2, lastWornDaysAgo:4 },
-  { name:'Black T-shirt', category:'tops', subcategory:'t-shirt', primary:'black', pattern:'solid', styles:['minimal','casual'], seasons:['spring','summer','fall'], occasions:['casual','travel','party','gym'], brand:'Uniqlo', material:'cotton', fit:'regular', timesWorn:3, lastWornDaysAgo:2 },
-  { name:'Grey Polo', category:'tops', subcategory:'polo', primary:'grey', pattern:'solid', styles:['smart casual','relaxed'], seasons:['spring','summer'], occasions:['casual','office','dinner','travel'], brand:'Ralph Lauren', material:'cotton blend', fit:'slim', timesWorn:1, lastWornDaysAgo:8 },
-  { name:'Navy Chinos', category:'bottoms', subcategory:'chinos', primary:'navy', pattern:'solid', styles:['smart casual','classic'], seasons:['spring','summer','fall'], occasions:['office','dinner','date','casual'], brand:'J.Crew', material:'cotton', fit:'slim', timesWorn:2, lastWornDaysAgo:4 },
-  { name:'Black Jeans', category:'bottoms', subcategory:'jeans', primary:'black', pattern:'solid', styles:['minimal','streetwear'], seasons:['spring','fall','winter'], occasions:['casual','date','party','dinner'], brand:"Levi's", material:'denim', fit:'slim', timesWorn:2, lastWornDaysAgo:1 },
-  { name:'Blue Jeans', category:'bottoms', subcategory:'jeans', primary:'denim', pattern:'solid', styles:['casual','classic'], seasons:['spring','summer','fall','winter'], occasions:['casual','travel','party'], brand:"Levi's", material:'denim', fit:'regular', timesWorn:3, lastWornDaysAgo:2 },
-  { name:'White Sneakers', category:'footwear', subcategory:'sneakers', primary:'white', pattern:'solid', styles:['minimal','smart casual'], seasons:['spring','summer','fall'], occasions:['casual','travel','dinner','date','party'], brand:'Common Projects', material:'leather', fit:null, timesWorn:4, lastWornDaysAgo:1 },
-  { name:'Brown Loafers', category:'footwear', subcategory:'loafers', primary:'brown', pattern:'solid', styles:['classic','smart casual'], seasons:['spring','summer','fall'], occasions:['office','dinner','date','formal'], brand:'Cole Haan', material:'leather', fit:null, timesWorn:1, lastWornDaysAgo:9 },
-  { name:'Navy Blazer', category:'outerwear', subcategory:'blazer', primary:'navy', pattern:'solid', styles:['classic','formal','smart casual'], seasons:['fall','winter','spring'], occasions:['office','formal','dinner','wedding','date'], brand:'Hugo Boss', material:'wool', fit:'regular', timesWorn:1, lastWornDaysAgo:4 },
-  { name:'Black Watch', category:'accessories', subcategory:'watch', primary:'black', pattern:'solid', styles:['minimal','classic'], seasons:['spring','summer','fall','winter'], occasions:['office','formal','dinner','date','casual','wedding'], brand:'Nomad', material:null, fit:null, timesWorn:3, lastWornDaysAgo:1 },
-];
-function seedSampleWardrobe(){
-  if(DB.items.length) return false;
-  const idByName = {};
-  for(const d of DEMO_ITEMS){
-    const id = uid();
-    idByName[d.name] = id;
-    DB.items.push({
-      id, name:d.name, imageUrl: placeholderImage(d.category, d.primary), category:d.category, subcategory:d.subcategory,
-      primaryColor:d.primary, secondaryColor:null, pattern:d.pattern, material:d.material, fit:d.fit,
-      formalityLevel: defaultFormality(d.subcategory, d.category), styles:d.styles, seasons:d.seasons, occasions:d.occasions,
-      brand:d.brand, status:'clean', notes:null, timesWorn:d.timesWorn,
-      lastWorn: d.lastWornDaysAgo!=null ? new Date(Date.now()-d.lastWornDaysAgo*864e5).toISOString() : null,
-      isFavorite:false, createdAt:new Date().toISOString(),
-    });
-  }
-  const mk = (name, occasion, style, score, names)=>{
-    const outfit = { id: uid(), name, occasion, style, weather:null, compatibilityScore:score, isFavorite:false, createdAt:new Date().toISOString(), lastWorn:null,
-      items: names.map(n=>{ const def=DEMO_ITEMS.find(d=>d.name===n); const slot=CATEGORY_TO_SLOT[def.category]; return { slot, itemId:idByName[n] }; }) };
-    DB.outfits.push(outfit); return outfit;
-  };
-  const smartCasual = mk('Smart Casual Classic','dinner','smart casual',92.4,['White Oxford Shirt','Navy Chinos','Brown Loafers','Navy Blazer','Black Watch']);
-  const weekend = mk('Weekend Minimal','casual','minimal',90.1,['Black T-shirt','Blue Jeans','White Sneakers']);
-  const city = mk('City Evening','date','smart casual',88.2,['Grey Polo','Black Jeans','White Sneakers','Black Watch']);
-  smartCasual.isFavorite = true;
-  getItem(idByName['White Oxford Shirt']).isFavorite = true;
-  getItem(idByName['White Sneakers']).isFavorite = true;
-  const history = [[smartCasual.id,'dinner',6,5],[weekend.id,'casual',4,4],[city.id,'date',2,null],[weekend.id,'casual',1,5]];
-  for(const [outfitId, occasion, daysAgo, rating] of history){
-    DB.wear.push({ id:uid(), wornDate: dateISO(new Date(Date.now()-daysAgo*864e5)), occasion, rating, notes:null, outfitId });
-  }
-  saveDB();
-  return true;
-}
 
 /* =========================================================================
    UI chrome — toasts, sheets, confirm dialog
@@ -1542,7 +1493,7 @@ function renderHome(){
         <p>Add your first clothing item and FitPick will start styling you.</p>
         <div class="row wrap" style="justify-content:center;gap:8px;">
           <button class="btn btn-primary" onclick="navTo('add')">${icon('plus')} Add Clothing</button>
-          <button class="btn btn-secondary" onclick="loadSamples()">Load Sample Wardrobe</button>
+          
         </div>
       </div>
     </div>`;
@@ -1643,13 +1594,6 @@ function renderRecentlyWorn(){
     </div>
   </section>`;
 }
-function loadSamples(){
-  const seeded = seedSampleWardrobe();
-  if(seeded) toast('Sample wardrobe loaded');
-  else toast('Your closet already has items');
-  STATE.homeToday=null;
-  render();
-}
 
 /* =========================================================================
    Closet screen
@@ -1711,7 +1655,7 @@ function renderCloset(){
       <p>Snap a photo of something in your closet to get started.</p>
       <div class="row wrap" style="justify-content:center;gap:8px;">
         <button class="btn btn-primary" onclick="navTo('add')">${icon('camera')} Add Clothing</button>
-        <button class="btn btn-secondary" onclick="loadSamples()">Load Sample Wardrobe</button>
+        
       </div>
     </div></div>`;
   }
@@ -2323,7 +2267,7 @@ function renderProfile(){
   <div class="card mt-4">
     <div class="section-title"><h2>Data</h2></div>
     <p class="small muted" style="margin-bottom:12px;">Wardrobe data in this single-file build is stored only in this browser and separated by signed-in account.</p>
-    ${!summary.total? `<button class="btn btn-secondary btn-block" style="margin-bottom:10px;" onclick="loadSamples()">Load sample wardrobe</button>`:''}
+    
     <button class="btn btn-danger btn-block" onclick="clearAllDataConfirm()">${icon('trash')} Clear all data</button>
   </div>
   `;
