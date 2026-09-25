@@ -316,6 +316,253 @@ svg.i{ width:1em; height:1em; stroke:currentColor; fill:none; stroke-width:2; st
 .account-row{ display:flex; align-items:center; justify-content:space-between; gap:12px; padding:10px 0; border-bottom:1px solid var(--line); }
 .account-row:last-child{ border-bottom:0; }
 
+
+/* ============================= LUXURY SHOWROOM MODE ============================= */
+:root, [data-theme="dark"]{
+  --bg:#070706;
+  --surface:#0e0e0d;
+  --surface2:#171613;
+  --surface3:#211f1a;
+  --fg:#f5f0e6;
+  --muted:#aaa294;
+  --faint:#6f695f;
+  --line:rgba(245,240,230,.08);
+  --line-strong:rgba(245,240,230,.16);
+  --accent:#c9aa72;
+  --accent2:#8e6f45;
+  --danger:#e0776e;
+  --success:#8ebc9d;
+  --warn:#d9b86f;
+  --champagne:#d8bd8a;
+  --ivory:#f4efe5;
+  --velvet:#0a0908;
+  color-scheme:dark;
+}
+[data-theme="light"]{
+  --bg:#f5f1e8;
+  --surface:#fffdf8;
+  --surface2:#ece5d8;
+  --surface3:#dfd4c3;
+  --fg:#171511;
+  --muted:#6d655a;
+  --faint:#9b9183;
+  --line:rgba(35,29,19,.09);
+  --line-strong:rgba(35,29,19,.16);
+  --accent:#9e7b45;
+  --accent2:#6f5433;
+  --champagne:#ad8a51;
+  --ivory:#171511;
+  color-scheme:light;
+}
+body{
+  background:
+    radial-gradient(circle at 50% -20%, rgba(201,170,114,.13), transparent 35%),
+    radial-gradient(circle at 100% 30%, rgba(201,170,114,.05), transparent 26%),
+    var(--bg);
+}
+body::before{
+  background:
+    radial-gradient(42% 26% at 50% 2%, rgba(227,205,161,.075), transparent 70%),
+    linear-gradient(180deg, rgba(255,255,255,.01), transparent 28%);
+}
+.logo{letter-spacing:.08em;text-transform:uppercase;}
+.logo .mark{background:linear-gradient(145deg,#dfc18b,#89683f)!important;box-shadow:0 10px 30px rgba(181,143,82,.22);}
+.text-gradient{
+  background:linear-gradient(120deg,#f1dfba,#c49b60,#8b6a3e);
+  -webkit-background-clip:text;background-clip:text;color:transparent;
+}
+.btn-primary{
+  background:linear-gradient(135deg,#dbc08c,#a57b43);
+  color:#17120c;
+  box-shadow:0 12px 35px -12px rgba(201,170,114,.55);
+}
+.btn-primary:hover{filter:brightness(1.06);}
+.card{
+  background:linear-gradient(180deg,color-mix(in oklab,var(--surface) 96%,white 1%),var(--surface));
+  border-color:var(--line);
+  box-shadow:0 24px 60px rgba(0,0,0,.11);
+}
+.section-title h2{
+  font-size:11px;
+  letter-spacing:.18em;
+  text-transform:uppercase;
+  color:var(--muted);
+}
+.rail,.topbar,.bottomnav-inner{
+  background:color-mix(in oklab,var(--bg) 78%,transparent);
+  backdrop-filter:blur(28px) saturate(130%);
+}
+.rail-item.active{
+  background:linear-gradient(135deg,#d5b778,#88683f);
+  color:#17120c;
+  box-shadow:0 10px 30px -10px rgba(201,170,114,.45);
+}
+.bn-item.active{color:var(--champagne);}
+.bn-item.accent{
+  background:linear-gradient(135deg,#d9bd85,#8e6c40);
+  color:#17120c;
+  box-shadow:0 14px 34px -10px rgba(201,170,114,.62);
+}
+
+.luxury-kicker{
+  font-size:10px;font-weight:700;letter-spacing:.24em;text-transform:uppercase;color:var(--champagne);
+}
+.editorial-title{
+  font-family:Georgia,"Times New Roman",serif;
+  font-weight:400;letter-spacing:-.035em;line-height:.98;
+}
+.editorial-copy{font-family:Georgia,"Times New Roman",serif;line-height:1.55;}
+.luxury-divider{
+  height:1px;background:linear-gradient(90deg,transparent,var(--line-strong),transparent);
+  margin:28px 0;
+}
+.showroom-hero{
+  position:relative;
+  min-height:520px;
+  border-radius:32px;
+  overflow:hidden;
+  border:1px solid var(--line);
+  background:
+    radial-gradient(circle at 50% 22%,rgba(238,220,182,.13),transparent 28%),
+    linear-gradient(180deg,#15130f 0%,#0c0b09 68%,#070706 100%);
+  box-shadow:0 42px 100px -34px rgba(0,0,0,.8), inset 0 1px rgba(255,255,255,.03);
+}
+.showroom-hero::before{
+  content:"";position:absolute;inset:-20% 20% 45%;
+  background:radial-gradient(ellipse at center,rgba(255,242,213,.13),transparent 68%);
+  filter:blur(12px);pointer-events:none;
+}
+.showroom-stage{
+  position:relative;min-height:360px;display:flex;align-items:flex-end;justify-content:center;
+  padding:40px 26px 24px;
+}
+.showroom-stage::after{
+  content:"";position:absolute;left:22%;right:22%;bottom:15px;height:18px;
+  background:radial-gradient(ellipse,rgba(0,0,0,.58),transparent 72%);
+  filter:blur(7px);
+}
+.showroom-outfit{
+  position:relative;z-index:2;display:flex;align-items:flex-end;justify-content:center;gap:8px;width:100%;
+}
+.showroom-piece{
+  flex:1;max-width:150px;transform:translateY(0);transition:transform .45s cubic-bezier(.2,.8,.2,1),filter .35s;
+}
+.showroom-piece:nth-child(2){transform:translateY(14px);}
+.showroom-piece:nth-child(3){transform:translateY(26px);}
+.showroom-piece:hover{transform:translateY(-7px) scale(1.025);filter:brightness(1.06);}
+.showroom-piece img{
+  width:100%;aspect-ratio:3/4;object-fit:cover;border-radius:20px;
+  box-shadow:0 28px 45px -22px rgba(0,0,0,.75);
+}
+.showroom-caption{
+  position:relative;z-index:3;padding:4px 26px 28px;text-align:center;
+}
+.showroom-caption h2{font-family:Georgia,"Times New Roman",serif;font-size:31px;font-weight:400;letter-spacing:-.025em;}
+.showroom-caption p{margin-top:8px;color:var(--muted);font-size:13px;}
+.showroom-actions{display:flex;gap:10px;justify-content:center;margin-top:18px;flex-wrap:wrap;}
+
+.collection-strip{
+  display:flex;gap:14px;overflow-x:auto;scroll-snap-type:x mandatory;padding:4px 2px 14px;scrollbar-width:none;
+}
+.collection-strip::-webkit-scrollbar{display:none;}
+.collection-card{
+  min-width:76%;scroll-snap-align:start;border-radius:26px;overflow:hidden;position:relative;
+  min-height:240px;border:1px solid var(--line);background:var(--surface);
+  box-shadow:0 20px 50px -28px rgba(0,0,0,.8);cursor:pointer;
+}
+@media(min-width:680px){.collection-card{min-width:44%;}}
+.collection-card .collection-bg{position:absolute;inset:0;display:flex;opacity:.76;}
+.collection-card .collection-bg img{width:50%;height:100%;object-fit:cover;}
+.collection-card::after{content:"";position:absolute;inset:0;background:linear-gradient(180deg,transparent 15%,rgba(7,7,6,.22) 44%,rgba(7,7,6,.92) 100%);}
+.collection-card .collection-copy{position:absolute;z-index:2;left:20px;right:20px;bottom:20px;}
+.collection-card h3{font-family:Georgia,"Times New Roman",serif;font-size:23px;font-weight:400;}
+.collection-card p{font-size:11px;color:#d9d0c1;margin-top:5px;letter-spacing:.08em;text-transform:uppercase;}
+
+.showroom-rack{
+  display:flex;gap:14px;overflow-x:auto;scroll-snap-type:x mandatory;padding:4px 4px 24px;scrollbar-width:none;
+}
+.showroom-rack::-webkit-scrollbar{display:none;}
+.rack-item{min-width:62%;scroll-snap-align:center;cursor:pointer;transition:transform .3s ease;}
+@media(min-width:640px){.rack-item{min-width:32%;}}
+.rack-item:hover{transform:translateY(-4px);}
+.rack-image{
+  position:relative;aspect-ratio:3/4;border-radius:26px;overflow:hidden;background:
+  radial-gradient(circle at 50% 20%,rgba(240,220,182,.08),transparent 35%),var(--surface2);
+  border:1px solid var(--line);
+}
+.rack-image img{width:100%;height:100%;object-fit:cover;}
+.rack-image::after{content:"";position:absolute;left:15%;right:15%;bottom:2%;height:6%;background:radial-gradient(ellipse,rgba(0,0,0,.45),transparent 65%);filter:blur(7px);}
+.rack-meta{padding:12px 4px 0;}
+.rack-meta h3{font-family:Georgia,"Times New Roman",serif;font-size:17px;font-weight:400;}
+.rack-meta p{font-size:11px;color:var(--muted);margin-top:5px;text-transform:uppercase;letter-spacing:.09em;}
+
+.product-stage{
+  position:relative;min-height:520px;border-radius:30px;overflow:hidden;
+  background:radial-gradient(circle at 50% 23%,rgba(236,215,174,.12),transparent 33%),linear-gradient(180deg,#15130f,#0b0a08);
+  border:1px solid var(--line);display:flex;align-items:center;justify-content:center;padding:34px;
+}
+.product-stage img{
+  max-width:82%;max-height:440px;width:auto;height:auto;border-radius:24px;
+  box-shadow:0 35px 55px -30px rgba(0,0,0,.78);
+}
+.product-floating-badge{
+  position:absolute;top:18px;right:18px;background:rgba(8,8,7,.65);backdrop-filter:blur(15px);
+  border:1px solid rgba(255,255,255,.08);border-radius:999px;padding:8px 12px;font-size:11px;
+}
+.product-name{font-family:Georgia,"Times New Roman",serif;font-size:34px;font-weight:400;letter-spacing:-.035em;}
+.product-subline{font-size:11px;letter-spacing:.12em;text-transform:uppercase;color:var(--muted);margin-top:8px;}
+.product-detail-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:9px;}
+.product-detail-cell{background:var(--surface2);padding:14px;border-radius:16px;}
+.product-detail-cell .k{font-size:9px;text-transform:uppercase;letter-spacing:.13em;color:var(--faint);}
+.product-detail-cell .v{font-size:13px;margin-top:5px;}
+
+.stylist-shell{
+  text-align:center;padding:18px 0 6px;
+}
+.stylist-shell .editorial-title{font-size:38px;}
+.stylist-question{font-family:Georgia,"Times New Roman",serif;font-size:23px;margin-bottom:15px;}
+.premium-chip{
+  background:transparent;border:1px solid var(--line-strong);color:var(--muted);
+  padding:12px 17px;border-radius:999px;cursor:pointer;transition:.2s;
+}
+.premium-chip:hover{color:var(--fg);border-color:rgba(201,170,114,.45);}
+.premium-chip.selected{background:var(--ivory);color:#15110c;border-color:transparent;}
+
+.reveal-card{
+  animation:luxReveal .7s cubic-bezier(.2,.75,.2,1) both;
+}
+@keyframes luxReveal{from{opacity:0;transform:translateY(22px) scale(.985);filter:blur(4px)}to{opacity:1;transform:none;filter:none}}
+@keyframes lightSweep{0%{transform:translateX(-120%) rotate(12deg)}100%{transform:translateX(320%) rotate(12deg)}}
+.light-sweep{position:relative;overflow:hidden;}
+.light-sweep::after{
+  content:"";position:absolute;top:-50%;bottom:-50%;width:18%;left:-30%;
+  background:linear-gradient(90deg,transparent,rgba(255,241,214,.07),transparent);
+  transform:rotate(12deg);animation:lightSweep 8s ease-in-out infinite;pointer-events:none;
+}
+.luxury-entry{
+  position:fixed;inset:0;z-index:500;background:
+  radial-gradient(circle at 50% 18%,rgba(223,196,143,.13),transparent 27%),
+  #060605;display:flex;align-items:center;justify-content:center;padding:28px;
+}
+.luxury-entry-inner{text-align:center;max-width:520px;}
+.luxury-entry-logo{
+  width:74px;height:74px;margin:0 auto 26px;border-radius:25px;display:grid;place-items:center;color:#18120b;
+  background:linear-gradient(145deg,#e5ca94,#8d6b3e);box-shadow:0 30px 70px -24px rgba(207,168,99,.65);
+}
+.luxury-entry .editorial-title{font-size:52px;color:#f4efe5;}
+.luxury-entry p{color:#a9a092;margin:18px auto 26px;max-width:380px;line-height:1.65;}
+.showroom-mode{
+  position:fixed;inset:0;z-index:450;background:#070706;color:#f4efe5;overflow-y:auto;
+}
+.showroom-mode-top{position:sticky;top:0;z-index:4;display:flex;justify-content:space-between;align-items:center;padding:18px 20px;background:rgba(7,7,6,.72);backdrop-filter:blur(24px);}
+.showroom-mode-content{max-width:760px;margin:0 auto;padding:18px 18px 80px;}
+.showroom-mode-look{min-height:76vh;display:flex;flex-direction:column;justify-content:center;}
+.luxury-close{border:1px solid rgba(255,255,255,.12);background:rgba(255,255,255,.04);color:#fff;border-radius:50%;width:42px;height:42px;display:grid;place-items:center;cursor:pointer;}
+
+.view-toggle{display:flex;background:var(--surface2);border-radius:999px;padding:3px;}
+.view-toggle button{border:0;background:transparent;color:var(--muted);padding:7px 12px;border-radius:999px;font-size:11px;cursor:pointer;}
+.view-toggle button.active{background:var(--fg);color:var(--bg);}
+
 </style>
 </head>
 <body>
@@ -1474,8 +1721,8 @@ const OCCASION_ICONS = { office:'briefcase', casual:'shirt', date:'heart', dinne
 const NAV = [
   { href:'home', label:'Home', icon:'home' },
   { href:'closet', label:'Closet', icon:'shirt' },
-  { href:'generate', label:'Generate', icon:'sparkles', accent:true },
-  { href:'outfits', label:'Outfits', icon:'layers' },
+  { href:'generate', label:'Style', icon:'sparkles', accent:true },
+  { href:'outfits', label:'Looks', icon:'layers' },
   { href:'profile', label:'Profile', icon:'user' },
 ];
 function currentRoute(){
@@ -1570,9 +1817,74 @@ window.addEventListener('hashchange', render);
 const STATE = {
   homeOccasion: null, homeLook: null, homeToday: null, homeLoading:false, homeMissing:[], homeSurprise:null,
   genOccasion:null, genStyle:null, genWeather:null, genAnchorId:null, genResults:[], genMissing:[], genExpanded:{},
-  closetCategory:'all', closetQuery:'', closetSort:'recent',
+  closetCategory:'all', closetQuery:'', closetSort:'recent', closetView:'showroom', showroomEntered:false,
   addPhoto:null, addAnalysis:null, addStream:null, addAiStatus:null, addAiError:null,
 };
+
+
+function enterShowroom(){
+  STATE.showroomEntered = true;
+  sessionStorage.setItem('fitpick_showroom_entered','1');
+  render();
+}
+function setClosetView(view){ STATE.closetView=view; render(); }
+
+function collectionItemsByOccasion(occasion, limit=4){
+  return DB.items
+    .filter(i=>!BLOCKED_STATUSES.includes(i.status) && (i.occasions||[]).includes(occasion))
+    .slice(0,limit);
+}
+function luxuryCollectionCard(title, subtitle, occasion){
+  const items = collectionItemsByOccasion(occasion,2);
+  if(!items.length) return '';
+  const bg = items.map(i=>`<img src="${i.imageUrl}" alt="${esc(i.name)}">`).join('');
+  return `<div class="collection-card" onclick="STATE.genOccasion='${occasion}'; navTo('generate')">
+    <div class="collection-bg">${bg}</div>
+    <div class="collection-copy">
+      <div class="luxury-kicker">${esc(subtitle)}</div>
+      <h3>${esc(title)}</h3>
+      <p>Curated from your wardrobe</p>
+    </div>
+  </div>`;
+}
+
+function openShowroomMode(){
+  let looks = DB.outfits.slice().sort((a,b)=>(b.isFavorite-a.isFavorite)||(new Date(b.createdAt)-new Date(a.createdAt))).slice(0,8);
+  if(!looks.length && STATE.homeToday){
+    const temp = saveGeneratedOutfit(STATE.homeToday, 'Today’s Edit');
+    looks = [temp];
+  }
+  if(!looks.length){ toast('Save a look first to enter Showroom Mode'); return; }
+
+  const root=document.getElementById('sheet-root');
+  root.innerHTML = `<div class="showroom-mode">
+    <div class="showroom-mode-top">
+      <div class="luxury-kicker">FitPick · Private Showroom</div>
+      <button class="luxury-close" onclick="closeShowroomMode()">${icon('x')}</button>
+    </div>
+    <div class="showroom-mode-content">
+      ${looks.map((o,idx)=>{
+        const items=outfitItemsResolved(o);
+        return `<section class="showroom-mode-look">
+          <div class="luxury-kicker">Look ${String(idx+1).padStart(2,'0')}</div>
+          <h2 class="editorial-title" style="font-size:42px;margin:8px 0 20px;">${esc(o.name)}</h2>
+          <div class="showroom-hero light-sweep" style="min-height:auto;">
+            <div class="showroom-stage">${outfitVisualHTML(items,false)}</div>
+            <div class="showroom-caption">
+              <p>${cap(o.occasion)} · ${cap(o.style||'Curated')}</p>
+              <div class="showroom-actions">
+                <button class="btn btn-primary" onclick="wearOutfitNow('${o.id}')">${icon('check')} Wear This Look</button>
+                <button class="btn btn-secondary" onclick="closeShowroomMode(); go('outfit','${o.id}')">View Details</button>
+              </div>
+            </div>
+          </div>
+        </section>`;
+      }).join('')}
+    </div>
+  </div>`;
+}
+function closeShowroomMode(){ document.getElementById('sheet-root').innerHTML=''; }
+
 
 /* =========================================================================
    Shared components
@@ -1698,90 +2010,120 @@ function renderHome(){
   const summary = closetSummary();
   const empty = summary.total===0;
   const firstName = (DB.profile.name||'there').split(' ')[0];
-  const greeting = greetingFor();
-  const dateLine = new Date().toLocaleDateString(undefined,{ weekday:'long', month:'long', day:'numeric' });
 
-  let html = `
-  <header class="row between" style="align-items:flex-start;margin-bottom:26px;">
-    <div>
-      <p class="small muted bold">${dateLine}</p>
-      <h1 style="font-size:26px;font-weight:800;letter-spacing:-.01em;margin-top:3px;">${greeting}, <span class="text-gradient">${esc(firstName)}</span></h1>
-    </div>
-    <div class="avatar gradient-accent">${esc(firstName.charAt(0).toUpperCase())}</div>
-  </header>`;
+  if(!STATE.showroomEntered && !sessionStorage.getItem('fitpick_showroom_entered')){
+    return `<div class="luxury-entry">
+      <div class="luxury-entry-inner">
+        <div class="luxury-entry-logo">${icon('shirt')}</div>
+        <div class="luxury-kicker">Your Private Wardrobe</div>
+        <h1 class="editorial-title" style="margin-top:12px;">Welcome to<br>FitPick</h1>
+        <p>A private digital showroom curated entirely from the clothes you own.</p>
+        <button class="btn btn-primary btn-lg" onclick="enterShowroom()">Enter Showroom ${icon('arrowRight')}</button>
+      </div>
+    </div>`;
+  }
 
   if(empty){
-    html += `
-    <div class="card pad-0">
-      <div class="empty">
-        <div class="ico">${icon('shirt')}</div>
-        <h3>Your wardrobe is empty</h3>
-        <p>Add your first clothing item and FitPick will start styling you.</p>
-        <div class="row wrap" style="justify-content:center;gap:8px;">
-          <button class="btn btn-primary" onclick="navTo('add')">${icon('plus')} Add Clothing</button>
-          
+    return `
+    <header style="margin-bottom:26px;">
+      <div class="luxury-kicker">Private Showroom</div>
+      <h1 class="editorial-title" style="font-size:42px;margin-top:8px;">Build your collection.</h1>
+      <p class="small muted" style="margin-top:12px;max-width:460px;line-height:1.6;">Photograph the pieces you already own. FitPick will transform them into a curated digital wardrobe.</p>
+    </header>
+    <div class="showroom-hero light-sweep" style="min-height:430px;">
+      <div class="showroom-stage" style="align-items:center;">
+        <div style="text-align:center;z-index:2;">
+          <div style="width:80px;height:80px;border-radius:28px;background:var(--surface2);display:grid;place-items:center;margin:0 auto 18px;color:var(--champagne);">${icon('camera')}</div>
+          <h2 class="editorial-title" style="font-size:30px;">Your wardrobe starts here.</h2>
+          <p class="small muted" style="margin:10px auto 20px;max-width:320px;">Add one piece at a time and let FitPick curate the rest.</p>
+          <button class="btn btn-primary btn-lg" onclick="navTo('add')">${icon('plus')} Add to Wardrobe</button>
         </div>
       </div>
     </div>`;
-    return html;
   }
 
   if(STATE.homeToday===null && STATE.homeMissing.length===0) computeHomeToday();
+  const today = STATE.homeToday;
+  const recentItems = [...DB.items].sort((a,b)=>new Date(b.createdAt)-new Date(a.createdAt)).slice(0,8);
 
-  html += `
-  <section class="mt-6">
-    <div class="section-title"><h2>What are you dressing for?</h2></div>
-    <div class="grid-cats">
-      ${DRESS_ME_OCCASIONS.map(o=>`
-        <button class="cat-btn ${STATE.homeOccasion===o.id?'active':''}" onclick="selectHomeOccasion('${o.id}')">
-          ${icon(OCCASION_ICONS[o.id]||'sparkles')}<span>${o.label}</span>
-        </button>`).join('')}
+  return `
+  <header class="row between" style="align-items:flex-end;margin-bottom:26px;">
+    <div>
+      <div class="luxury-kicker">Private Showroom</div>
+      <h1 class="editorial-title" style="font-size:42px;margin-top:7px;">Good ${new Date().getHours()<12?'morning':new Date().getHours()<17?'afternoon':'evening'}, ${esc(firstName)}.</h1>
+      <p class="small muted" style="margin-top:9px;">Your wardrobe, curated for the moment.</p>
     </div>
-  </section>
-  <section class="mt-4">
-    <div class="section-title"><h2>How do you want to look?</h2></div>
-    <div class="scrollx">
-      ${LOOKS.map(l=>`<button class="chip ${STATE.homeLook===l.id?'selected':''}" onclick="selectHomeLook('${l.id}')">${l.label}</button>`).join('')}
-    </div>
-  </section>
-  <div class="row" style="gap:10px;margin-top:18px;">
-    <button class="btn btn-primary btn-lg grow" onclick="dressMe(true)">${icon('wand')} Dress Me</button>
-    <button class="btn btn-secondary btn-lg btn-icon" style="width:52px;" onclick="surpriseMeHome()" aria-label="Surprise me">${icon('dice')}</button>
-  </div>
+    <button class="btn btn-secondary btn-sm" onclick="openShowroomMode()">${icon('sparkles')} Showroom Mode</button>
+  </header>
 
-  <section class="mt-6">
-    <div class="section-title"><h2>Today's Look</h2>
+  <section>
+    <div class="row between" style="margin-bottom:12px;">
+      <div>
+        <div class="luxury-kicker">Today’s Edit</div>
+        <h2 class="editorial-title" style="font-size:26px;margin-top:5px;">A look selected for you.</h2>
+      </div>
       <button class="btn btn-ghost btn-sm" onclick="dressMe(true)">${icon('refresh')} Another</button>
     </div>
-    ${STATE.homeToday
-      ? generatedOutfitCardHTML(STATE.homeToday, 'home', { onWear:'wearHomeToday()', onSave:'saveHomeToday()' })
-      : `<div class="card"><p class="small muted">${STATE.homeMissing.length? `Add ${STATE.homeMissing.map(cap).join(', ')} to your closet to unlock outfit suggestions.` : 'Nothing clean is available right now \u2014 check your laundry status in the Closet.'}</p></div>`
+    ${today ? `
+      <div class="showroom-hero light-sweep reveal-card">
+        <div class="showroom-stage">
+          <div class="showroom-outfit">
+            ${today.items.map(s=>`<div class="showroom-piece"><img src="${s.item.imageUrl}" alt="${esc(s.item.name)}"></div>`).join('')}
+          </div>
+        </div>
+        <div class="showroom-caption">
+          <div class="luxury-kicker">${cap(today.occasion)} · ${formalityLabel(today.formality)}</div>
+          <h2>${cap(today.style||'Curated')} Edit</h2>
+          <p>${esc(today.explanation)}</p>
+          <div class="showroom-actions">
+            <button class="btn btn-primary" onclick="wearHomeToday()">${icon('check')} Wear This Look</button>
+            <button class="btn btn-secondary" onclick="saveHomeToday()">${icon('bookmark')} Save Look</button>
+            <button class="btn btn-ghost" onclick="navTo('generate')">Refine ${icon('arrowRight')}</button>
+          </div>
+        </div>
+      </div>` :
+      `<div class="card"><p class="small muted">Add clean tops, bottoms and footwear to unlock your curated daily edit.</p></div>`
     }
   </section>
 
-  ${STATE.homeSurprise? `
-  <section class="mt-6">
-    <div class="section-title"><h2>Surprise Pick</h2>
-      <button class="btn btn-ghost btn-sm" onclick="STATE.homeSurprise=null; render();">${icon('x')}</button>
-    </div>
-    ${generatedOutfitCardHTML(STATE.homeSurprise, 'surprise', { onWear:'wearHomeSurprise()', onSave:'saveHomeSurprise()' })}
-  </section>` : ''}
+  <div class="luxury-divider"></div>
 
-  <section class="mt-6">
-    <div class="section-title"><h2>Your Closet</h2>
-      <button class="btn btn-ghost btn-sm" onclick="navTo('closet')">See all ${icon('arrowRight')}</button>
-    </div>
-    <div class="stat-grid">
-      <div class="stat-card"><div class="n">${summary.total}</div><div class="l">Total pieces</div></div>
-      <div class="stat-card"><div class="n">${DB.outfits.length}</div><div class="l">Saved outfits</div></div>
-      <div class="stat-card"><div class="n">${DB.wear.length}</div><div class="l">Times worn</div></div>
+  <section>
+    <div class="section-title"><h2>Curated for you</h2></div>
+    <div class="collection-strip">
+      ${luxuryCollectionCard('The Work Edit','Polished essentials','office')}
+      ${luxuryCollectionCard('Weekend Ease','Relaxed rotation','casual')}
+      ${luxuryCollectionCard('After Hours','Dinner & evening','dinner')}
+      ${luxuryCollectionCard('Travel Capsule','Ready to move','travel')}
     </div>
   </section>
-  ${renderInsightsPreview()}
-  ${renderRecentlyWorn()}
-  `;
-  return html;
+
+  <section class="mt-6">
+    <div class="row between" style="margin-bottom:12px;">
+      <div>
+        <div class="luxury-kicker">From your wardrobe</div>
+        <h2 class="editorial-title" style="font-size:26px;margin-top:5px;">Recently added.</h2>
+      </div>
+      <button class="btn btn-ghost btn-sm" onclick="navTo('closet')">View Collection ${icon('arrowRight')}</button>
+    </div>
+    <div class="showroom-rack">
+      ${recentItems.map(i=>`<div class="rack-item" onclick="go('item','${i.id}')">
+        <div class="rack-image"><img src="${i.imageUrl}" alt="${esc(i.name)}"></div>
+        <div class="rack-meta"><h3>${esc(i.name)}</h3><p>${cap(i.primaryColor)} · ${cap(i.subcategory)}</p></div>
+      </div>`).join('')}
+    </div>
+  </section>
+
+  <section class="mt-6">
+    <div class="section-title"><h2>Your stylist</h2></div>
+    <div class="card" style="padding:24px;">
+      <div class="luxury-kicker">Style note</div>
+      <p class="editorial-copy" style="font-size:19px;margin-top:10px;">${buildInsights(DB.items)[0]?.text || 'Your wardrobe is taking shape. Keep adding pieces and FitPick will learn your rotation.'}</p>
+      <button class="btn btn-ghost btn-sm" style="padding-left:0;margin-top:14px;" onclick="navTo('profile')">See wardrobe insights ${icon('arrowRight')}</button>
+    </div>
+  </section>`;
 }
+
 function renderInsightsPreview(){
   const insights = buildInsights(DB.items).slice(0,2);
   if(!insights.length) return '';
@@ -1867,44 +2209,67 @@ function closetGridHTML(){
 }
 function renderCloset(){
   const summary = closetSummary();
+  const items = filteredClosetItems();
+
   let html = `
-  <header class="row between" style="margin-bottom:20px;">
-    <h1 style="font-size:22px;font-weight:800;">Closet</h1>
-    <button class="btn btn-primary btn-sm" onclick="navTo('add')">${icon('plus')} Add</button>
+  <header class="row between" style="align-items:flex-end;margin-bottom:24px;">
+    <div>
+      <div class="luxury-kicker">Your Collection</div>
+      <h1 class="editorial-title" style="font-size:40px;margin-top:7px;">The Wardrobe.</h1>
+      <p class="small muted" style="margin-top:8px;">${summary.total} piece${summary.total===1?'':'s'} · curated by you</p>
+    </div>
+    <button class="btn btn-primary btn-sm" onclick="navTo('add')">${icon('plus')} Add Piece</button>
   </header>`;
 
   if(summary.total===0){
-    return html + `
-    <div class="card pad-0"><div class="empty">
-      <div class="ico">${icon('shirt')}</div>
-      <h3>No clothing yet</h3>
-      <p>Snap a photo of something in your closet to get started.</p>
-      <div class="row wrap" style="justify-content:center;gap:8px;">
-        <button class="btn btn-primary" onclick="navTo('add')">${icon('camera')} Add Clothing</button>
-        
-      </div>
-    </div></div>`;
+    return html + `<div class="showroom-hero" style="min-height:420px;"><div class="showroom-stage" style="align-items:center;"><div style="text-align:center;z-index:2;">
+      <div class="luxury-kicker">Empty collection</div>
+      <h2 class="editorial-title" style="font-size:31px;margin-top:8px;">Begin with one piece.</h2>
+      <p class="small muted" style="margin:10px auto 18px;max-width:320px;">Photograph something you own and FitPick will start building your digital showroom.</p>
+      <button class="btn btn-primary" onclick="navTo('add')">${icon('camera')} Add to Wardrobe</button>
+    </div></div></div>`;
   }
 
   html += `
-  <div class="field"><input class="input" placeholder="Search your closet\u2026" value="${esc(STATE.closetQuery)}" oninput="setClosetQuery(this.value)"></div>
-  <div class="scrollx" style="margin-bottom:14px;">
-    <button class="chip small ${STATE.closetCategory==='all'?'selected':''}" onclick="setClosetCategory('all')">All \u00b7 ${summary.total}</button>
-    ${CATEGORIES.map(c=>`<button class="chip small ${STATE.closetCategory===c.id?'selected':''}" onclick="setClosetCategory('${c.id}')">${c.label} \u00b7 ${summary.byCategory[c.id]||0}</button>`).join('')}
+  <div class="row between" style="gap:12px;margin-bottom:15px;">
+    <div class="grow"><input class="input" placeholder="Search your collection…" value="${esc(STATE.closetQuery)}" oninput="setClosetQuery(this.value)"></div>
+    <div class="view-toggle">
+      <button class="${STATE.closetView==='showroom'?'active':''}" onclick="setClosetView('showroom')">Showroom</button>
+      <button class="${STATE.closetView==='grid'?'active':''}" onclick="setClosetView('grid')">Grid</button>
+    </div>
   </div>
-  <div class="row between" style="margin-bottom:14px;">
-    <span class="tiny muted">${filteredClosetItems().length} piece${filteredClosetItems().length===1?'':'s'}</span>
-    <select class="input" style="width:auto;padding:7px 10px;font-size:12.5px;" onchange="setClosetSort(this.value)">
-      <option value="recent" ${STATE.closetSort==='recent'?'selected':''}>Recently added</option>
-      <option value="most-worn" ${STATE.closetSort==='most-worn'?'selected':''}>Most worn</option>
-      <option value="least-worn" ${STATE.closetSort==='least-worn'?'selected':''}>Least worn</option>
-      <option value="name" ${STATE.closetSort==='name'?'selected':''}>Name</option>
-    </select>
-  </div>
-  ${closetGridHTML()}
-  `;
+  <div class="scrollx" style="margin-bottom:18px;">
+    <button class="premium-chip ${STATE.closetCategory==='all'?'selected':''}" onclick="setClosetCategory('all')">All</button>
+    ${CATEGORIES.map(c=>`<button class="premium-chip ${STATE.closetCategory===c.id?'selected':''}" onclick="setClosetCategory('${c.id}')">${c.label}</button>`).join('')}
+  </div>`;
+
+  if(STATE.closetView==='showroom'){
+    html += `<div class="showroom-rack" style="align-items:flex-start;">
+      ${items.map(i=>`<div class="rack-item" onclick="go('item','${i.id}')">
+        <div class="rack-image">
+          <img src="${i.imageUrl}" alt="${esc(i.name)}">
+          <div class="item-status">${statusBadgeHTML(i.status)}</div>
+        </div>
+        <div class="rack-meta">
+          <h3>${esc(i.name)}</h3>
+          <p>${cap(i.primaryColor)} · ${cap(i.subcategory)} · worn ${i.timesWorn||0}×</p>
+        </div>
+      </div>`).join('')}
+    </div>`;
+  }else{
+    html += `<div class="row between" style="margin-bottom:14px;">
+      <span class="tiny muted">${items.length} piece${items.length===1?'':'s'}</span>
+      <select class="input" style="width:auto;padding:7px 10px;font-size:12px;" onchange="setClosetSort(this.value)">
+        <option value="recent" ${STATE.closetSort==='recent'?'selected':''}>Recently added</option>
+        <option value="most-worn" ${STATE.closetSort==='most-worn'?'selected':''}>Most worn</option>
+        <option value="least-worn" ${STATE.closetSort==='least-worn'?'selected':''}>Least worn</option>
+        <option value="name" ${STATE.closetSort==='name'?'selected':''}>Name</option>
+      </select>
+    </div>${closetGridHTML()}`;
+  }
   return html;
 }
+
 
 /* =========================================================================
    Item detail / edit screen
@@ -1961,75 +2326,66 @@ function multiChipGroupWired(name, options, selected){
 
 function renderItemDetail(id){
   const item = getItem(id);
-  if(!item) return `<div class="card"><p>Item not found.</p><button class="btn btn-secondary mt-4" onclick="navTo('closet')">Back to Closet</button></div>`;
-
+  if(!item) return `<div class="card"><p>Item not found.</p><button class="btn btn-secondary mt-4" onclick="navTo('closet')">Back to Collection</button></div>`;
   if(ITEM_EDIT_MODE) return renderItemEdit(item);
 
-  const wearsRecent = DB.wear.filter(w=>{ const o=getOutfit(w.outfitId); return o && o.items.some(s=>s.itemId===id); }).slice(0,5);
-
   return `
-  <button class="btn btn-ghost btn-sm" style="padding-left:0;margin-bottom:10px;" onclick="navTo('closet')">${icon('chevRight')} Back</button>
-  <div class="item-thumb" style="aspect-ratio:1/1;max-width:320px;margin:0 auto 18px;border-radius:24px;">
+  <button class="btn btn-ghost btn-sm" style="padding-left:0;margin-bottom:14px;" onclick="navTo('closet')">${icon('chevRight')} Back to Collection</button>
+
+  <div class="product-stage light-sweep">
     <img src="${item.imageUrl}" alt="${esc(item.name)}">
-    <button class="item-fav" style="width:38px;height:38px;" onclick="toggleItemFavorite('${item.id}')">${icon(item.isFavorite?'heartFill':'heart')}</button>
+    <button class="product-floating-badge" onclick="toggleItemFavorite('${item.id}')" style="color:${item.isFavorite?'var(--champagne)':'#fff'};cursor:pointer;">
+      ${icon(item.isFavorite?'heartFill':'heart')} ${item.isFavorite?'Favorite':'Add to favorites'}
+    </button>
   </div>
-  <div class="row between" style="align-items:flex-start;">
-    <div>
-      <h1 style="font-size:21px;font-weight:800;">${esc(item.name)}</h1>
-      <p class="small muted mt-2">${item.brand? esc(item.brand)+' \u00b7 ':''}${cap(item.subcategory)}</p>
+
+  <section style="padding:24px 2px 0;">
+    <div class="luxury-kicker">${cap(item.subcategory)} · ${statusBadgeHTML(item.status)}</div>
+    <h1 class="product-name" style="margin-top:8px;">${esc(item.name)}</h1>
+    <p class="product-subline">${item.brand?esc(item.brand)+' · ':''}${cap(item.primaryColor)} · ${formalityLabel(item.formalityLevel)}</p>
+
+    <div class="row wrap" style="gap:7px;margin-top:16px;">
+      ${(item.styles||[]).map(s=>`<span class="chip small">${cap(s)}</span>`).join('')}
     </div>
-    ${statusBadgeHTML(item.status)}
-  </div>
 
-  <div class="row wrap" style="gap:6px;margin-top:14px;">
-    ${(item.styles||[]).map(s=>`<span class="chip small">${cap(s)}</span>`).join('')}
-  </div>
-
-  <div class="card mt-4">
-    <div class="stat-grid">
-      <div class="stat-card"><div class="n">${item.timesWorn||0}</div><div class="l">Times worn</div></div>
-      <div class="stat-card"><div class="n">${timeAgo(item.lastWorn)}</div><div class="l" style="font-size:9.5px;">Last worn</div></div>
-      <div class="stat-card"><div class="n">${formalityLabel(item.formalityLevel)}</div><div class="l" style="font-size:9px;">Formality</div></div>
+    <div class="row" style="gap:10px;margin-top:22px;">
+      <button class="btn btn-primary btn-lg grow" onclick="buildOutfitWithItem('${item.id}')">${icon('wand')} Style This Piece</button>
+      <button class="btn btn-secondary btn-icon" onclick="startItemEdit()" aria-label="Edit">${icon('edit')}</button>
     </div>
-  </div>
+  </section>
 
-  <div class="card mt-4">
-    <div class="section-title"><h2>Details</h2></div>
-    <div style="display:flex;flex-direction:column;gap:10px;" class="small">
-      <div class="row between"><span class="muted">Color</span><span class="row" style="gap:6px;"><span class="swatch" style="width:16px;height:16px;background:${colorHex(item.primaryColor)};border-width:1px;"></span>${cap(item.primaryColor)}${item.secondaryColor?` / ${cap(item.secondaryColor)}`:''}</span></div>
-      <div class="row between"><span class="muted">Pattern</span><span>${cap(item.pattern)}</span></div>
-      <div class="row between"><span class="muted">Material</span><span>${item.material?cap(item.material):'\u2014'}</span></div>
-      <div class="row between"><span class="muted">Fit</span><span>${item.fit?cap(item.fit):'\u2014'}</span></div>
-      <div class="row between"><span class="muted">Occasions</span><span style="text-align:right;">${(item.occasions||[]).map(cap).join(', ')||'\u2014'}</span></div>
-      <div class="row between"><span class="muted">Seasons</span><span style="text-align:right;">${(item.seasons||[]).map(cap).join(', ')||'\u2014'}</span></div>
-      ${item.notes?`<div><span class="muted">Notes</span><p class="mt-2">${esc(item.notes)}</p></div>`:''}
+  <div class="luxury-divider"></div>
+
+  <section>
+    <div class="section-title"><h2>Product Details</h2></div>
+    <div class="product-detail-grid">
+      <div class="product-detail-cell"><div class="k">Color</div><div class="v">${cap(item.primaryColor)}${item.secondaryColor?` / ${cap(item.secondaryColor)}`:''}</div></div>
+      <div class="product-detail-cell"><div class="k">Pattern</div><div class="v">${cap(item.pattern)}</div></div>
+      <div class="product-detail-cell"><div class="k">Material</div><div class="v">${item.material?cap(item.material):'—'}</div></div>
+      <div class="product-detail-cell"><div class="k">Fit</div><div class="v">${item.fit?cap(item.fit):'—'}</div></div>
+      <div class="product-detail-cell"><div class="k">Times worn</div><div class="v">${item.timesWorn||0}</div></div>
+      <div class="product-detail-cell"><div class="k">Last worn</div><div class="v">${timeAgo(item.lastWorn)}</div></div>
     </div>
-  </div>
+  </section>
 
-  <div class="card mt-4">
-    <div class="section-title"><h2>Laundry status</h2></div>
+  <section class="mt-6">
+    <div class="section-title"><h2>Laundry Status</h2></div>
     <div class="scrollx">
-      ${STATUS_IDS.map(s=>`<button class="chip small ${item.status===s.id?'selected':''}" onclick="setItemStatus('${item.id}','${s.id}')">${s.label}</button>`).join('')}
+      ${STATUS_IDS.map(s=>`<button class="premium-chip ${item.status===s.id?'selected':''}" onclick="setItemStatus('${item.id}','${s.id}')">${s.label}</button>`).join('')}
     </div>
-  </div>
+  </section>
 
-  ${wearsRecent.length? `
-  <div class="card mt-4">
-    <div class="section-title"><h2>Recent wears</h2></div>
-    <div style="display:flex;flex-direction:column;gap:8px;">
-      ${wearsRecent.map(w=>`<div class="row between small"><span class="muted">${dayLabel(w.wornDate)}</span><span>${cap(w.occasion)}</span></div>`).join('')}
-    </div>
-  </div>` : ''}
+  <section class="mt-6">
+    <div class="section-title"><h2>Wear It For</h2></div>
+    <p class="editorial-copy" style="font-size:18px;">${(item.occasions||[]).map(cap).join(' · ') || 'Everyday rotation'}</p>
+  </section>
 
-  <div class="row" style="gap:10px;margin-top:20px;">
-    <button class="btn btn-primary grow" onclick="buildOutfitWithItem('${item.id}')">${icon('wand')} Build outfit with this</button>
-  </div>
-  <div class="row" style="gap:10px;margin-top:10px;">
-    <button class="btn btn-secondary grow" onclick="startItemEdit()">${icon('edit')} Edit</button>
-    <button class="btn btn-danger btn-icon" onclick="deleteItemConfirm('${item.id}')" aria-label="Delete">${icon('trash')}</button>
-  </div>
-  `;
+  <div class="row" style="gap:10px;margin-top:28px;">
+    <button class="btn btn-secondary grow" onclick="startItemEdit()">${icon('edit')} Edit Details</button>
+    <button class="btn btn-danger btn-icon" onclick="deleteItemConfirm('${item.id}')" aria-label="Remove">${icon('trash')}</button>
+  </div>`;
 }
+
 
 function renderItemEdit(item){
   return `
@@ -2203,7 +2559,7 @@ function renderAdd(){
 function renderAddPhotoStep(){
   return `
   <button class="btn btn-ghost btn-sm" style="padding-left:0;margin-bottom:10px;" onclick="navTo('closet')">${icon('x')} Cancel</button>
-  <h1 style="font-size:21px;font-weight:800;margin-bottom:4px;">Add clothing</h1>
+  <h1 style="font-size:21px;font-weight:800;margin-bottom:4px;">Add to wardrobe</h1>
   <p class="small muted mt-2" style="margin-bottom:20px;">Snap or upload a photo \u2014 FitPick reads the dominant color straight off it.</p>
   <label class="dropzone" style="display:block;margin-bottom:14px;">
     <input type="file" accept="image/*" capture="environment" style="display:none;" onchange="handleAddFile(this)">
@@ -2341,47 +2697,75 @@ function wearGenResult(idx){ const g=STATE.genResults[idx]; if(!g) return; const
 
 function renderGenerate(){
   const anchor = STATE.genAnchorId ? getItem(STATE.genAnchorId) : null;
+
   let html = `
-  <header style="margin-bottom:20px;">
-    <h1 style="font-size:22px;font-weight:800;">Generate an outfit</h1>
-    <p class="small muted mt-2">Tell the stylist what you need \u2014 every option is scored on color, occasion, style, formality and weather.</p>
-  </header>`;
+  <div class="stylist-shell">
+    <div class="luxury-kicker">Private Stylist</div>
+    <h1 class="editorial-title">Curate a Look.</h1>
+    <p class="small muted" style="margin:12px auto 28px;max-width:440px;line-height:1.6;">Tell FitPick where you're going and how you want to feel. Your wardrobe will do the rest.</p>
+  </div>`;
 
   if(!DB.items.length){
-    return html + `<div class="card"><p class="small muted">Add a few pieces to your closet first.</p><button class="btn btn-primary mt-4" onclick="navTo('add')">${icon('plus')} Add Clothing</button></div>`;
+    return html + `<div class="card"><p class="small muted">Your collection needs a few pieces first.</p><button class="btn btn-primary mt-4" onclick="navTo('add')">${icon('plus')} Add to Wardrobe</button></div>`;
   }
 
   html += `
   <section class="mt-4">
-    <div class="section-title"><h2>Occasion</h2></div>
-    <div class="scrollx">${DRESS_ME_OCCASIONS.map(o=>`<button class="chip ${STATE.genOccasion===o.id?'selected':''}" onclick="setGenOccasion('${o.id}')">${o.label}</button>`).join('')}</div>
-  </section>
-  <section class="mt-4">
-    <div class="section-title"><h2>Style</h2></div>
-    <div class="scrollx">${STYLE_IDS.map(s=>`<button class="chip ${STATE.genStyle===s?'selected':''}" onclick="setGenStyle('${s}')">${cap(s)}</button>`).join('')}</div>
-  </section>
-  <section class="mt-4">
-    <div class="section-title"><h2>Weather</h2></div>
-    <div class="scrollx">${WEATHER_IDS.map(w=>`<button class="chip ${STATE.genWeather===w.id?'selected':''}" onclick="setGenWeather('${w.id}')">${w.label}</button>`).join('')}</div>
-  </section>
-  <section class="mt-4">
-    <div class="section-title"><h2>Starting piece (optional)</h2></div>
-    ${anchor? `
-      <div class="card row between" style="padding:10px 12px;">
-        <div class="row" style="gap:10px;"><div class="item-thumb" style="width:46px;height:46px;border-radius:12px;"><img src="${anchor.imageUrl}"></div><span class="small bold">${esc(anchor.name)}</span></div>
-        <button class="btn-icon btn-ghost" onclick="clearGenAnchor()">${icon('x')}</button>
-      </div>` : `<button class="btn btn-secondary btn-block" onclick="openAnchorPicker()">${icon('plus')} Anchor around a specific piece</button>`}
+    <div class="stylist-question">Where are we going?</div>
+    <div class="row wrap" style="justify-content:center;gap:8px;">
+      ${DRESS_ME_OCCASIONS.map(o=>`<button class="premium-chip ${STATE.genOccasion===o.id?'selected':''}" onclick="setGenOccasion('${o.id}')">${o.label}</button>`).join('')}
+    </div>
   </section>
 
-  <button class="btn btn-primary btn-lg btn-block mt-6" onclick="runGenerate()">${icon('wand')} Generate outfits</button>
+  <section class="mt-6">
+    <div class="stylist-question">How do you want to feel?</div>
+    <div class="row wrap" style="justify-content:center;gap:8px;">
+      ${STYLE_IDS.map(s=>`<button class="premium-chip ${STATE.genStyle===s?'selected':''}" onclick="setGenStyle('${s}')">${cap(s)}</button>`).join('')}
+    </div>
+  </section>
+
+  <section class="mt-6">
+    <div class="section-title"><h2>Weather</h2></div>
+    <div class="row wrap" style="gap:8px;">
+      ${WEATHER_IDS.map(w=>`<button class="premium-chip ${STATE.genWeather===w.id?'selected':''}" onclick="setGenWeather('${w.id}')">${w.label}</button>`).join('')}
+    </div>
+  </section>
+
+  <section class="mt-6">
+    <div class="section-title"><h2>Feature Piece</h2></div>
+    ${anchor?`
+      <div class="card row between" style="padding:11px 13px;">
+        <div class="row" style="gap:11px;"><div class="item-thumb" style="width:52px;height:52px;border-radius:14px;"><img src="${anchor.imageUrl}"></div><div><p class="small bold">${esc(anchor.name)}</p><p class="tiny muted mt-2">This piece will anchor the look</p></div></div>
+        <button class="btn-icon btn-ghost" onclick="clearGenAnchor()">${icon('x')}</button>
+      </div>`:
+      `<button class="btn btn-secondary btn-block" onclick="openAnchorPicker()">${icon('plus')} Style around a specific piece</button>`}
+  </section>
+
+  <button class="btn btn-primary btn-lg btn-block mt-6" onclick="runGenerate()">${icon('sparkles')} Curate My Look</button>
 
   <div id="gen-results" class="mt-6">
-  ${STATE.genMissing.length? `<div class="card"><p class="small muted">Add ${STATE.genMissing.map(cap).join(', ')} to your closet to unlock outfit suggestions.</p></div>` : ''}
-  ${STATE.genResults.map((g,idx)=>`<div class="mt-4">${generatedOutfitCardHTML(g, 'gen'+idx, { onSave:`saveGenResult(${idx})`, onWear:`wearGenResult(${idx})` })}</div>`).join('')}
-  </div>
-  `;
+    ${STATE.genMissing.length?`<div class="card"><p class="small muted">Add ${STATE.genMissing.map(cap).join(', ')} to unlock complete looks.</p></div>`:''}
+    ${STATE.genResults.map((g,idx)=>`
+      <div class="showroom-hero light-sweep reveal-card" style="min-height:auto;margin-top:16px;animation-delay:${idx*.08}s;">
+        <div class="showroom-stage">
+          <div class="showroom-outfit">${g.items.map(s=>`<div class="showroom-piece"><img src="${s.item.imageUrl}" alt="${esc(s.item.name)}"></div>`).join('')}</div>
+        </div>
+        <div class="showroom-caption">
+          <div class="luxury-kicker">Look ${String(idx+1).padStart(2,'0')} · ${g.label}</div>
+          <h2>${cap(g.style||'Curated')} ${cap(g.occasion||'')} Edit</h2>
+          <p>${esc(g.explanation)}</p>
+          <div class="showroom-actions">
+            <button class="btn btn-primary" onclick="wearGenResult(${idx})">${icon('check')} Wear This Look</button>
+            <button class="btn btn-secondary" onclick="saveGenResult(${idx})">${icon('bookmark')} Save</button>
+            <button class="btn btn-ghost" onclick="toggleGenExpand('gen${idx}')">Why this look?</button>
+          </div>
+          ${STATE.genExpanded['gen'+idx]?`<div style="max-width:420px;margin:16px auto 0;text-align:left;">${scoreBreakdownHTML(g.breakdown)}</div>`:''}
+        </div>
+      </div>`).join('')}
+  </div>`;
   return html;
 }
+
 
 /* =========================================================================
    Outfits screen — saved outfits
@@ -2415,7 +2799,7 @@ function savedOutfitCardHTML(outfit){
 }
 function renderOutfits(){
   let html = `<header class="row between" style="margin-bottom:20px;">
-    <h1 style="font-size:22px;font-weight:800;">Outfits</h1>
+    <h1 style="font-size:22px;font-weight:800;">Looks</h1>
     <button class="btn btn-primary btn-sm" onclick="navTo('generate')">${icon('wand')} Generate</button>
   </header>`;
   if(!DB.outfits.length){
@@ -2508,7 +2892,7 @@ function renderProfile(){
 
   <div class="stat-grid mt-4">
     <div class="stat-card"><div class="n">${summary.total}</div><div class="l">Pieces</div></div>
-    <div class="stat-card"><div class="n">${DB.outfits.length}</div><div class="l">Outfits</div></div>
+    <div class="stat-card"><div class="n">${DB.outfits.length}</div><div class="l">Looks</div></div>
     <div class="stat-card"><div class="n">${DB.wear.length}</div><div class="l">Wears logged</div></div>
   </div>
 
@@ -2617,6 +3001,7 @@ async function hydrateUserData(){
    Init
    ========================================================================= */
 async function init(){
+  STATE.showroomEntered = !!sessionStorage.getItem('fitpick_showroom_entered');
   document.documentElement.dataset.theme = 'dark';
   if(!location.hash) location.hash = '#/auth';
   await initAuth();
