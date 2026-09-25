@@ -263,6 +263,35 @@ svg.i{ width:1em; height:1em; stroke:currentColor; fill:none; stroke-width:2; st
 .camera-frame video, .camera-frame img{ width:100%; height:100%; object-fit:cover; }
 .dropzone{ border:1.5px dashed var(--line-strong); border-radius:20px; padding:32px 16px; text-align:center; cursor:pointer; background:var(--surface2); }
 .dropzone:hover{ border-color:var(--accent); }
+
+/* ============================= Authentication ============================= */
+.auth-wrap{
+  position:relative; z-index:20; min-height:100dvh; display:grid; place-items:center;
+  padding:28px 18px calc(28px + env(safe-area-inset-bottom,0px));
+}
+.auth-card{
+  width:100%; max-width:420px; background:var(--surface); border:1px solid var(--line);
+  border-radius:28px; padding:28px 24px; box-shadow:0 28px 70px -28px rgba(0,0,0,.65);
+}
+.auth-brand{ display:flex; flex-direction:column; align-items:center; text-align:center; margin-bottom:24px; }
+.auth-brand .mark{ width:54px; height:54px; border-radius:18px; display:grid; place-items:center; color:#fff; margin-bottom:12px; }
+.auth-brand h1{ font-size:26px; font-weight:850; letter-spacing:-.02em; }
+.auth-brand p{ margin-top:6px; color:var(--muted); font-size:13.5px; line-height:1.5; }
+.auth-tabs{ display:grid; grid-template-columns:1fr 1fr; gap:6px; padding:5px; border-radius:15px; background:var(--surface2); margin-bottom:20px; }
+.auth-tab{ border:0; background:transparent; color:var(--muted); border-radius:11px; padding:9px 10px; font-weight:750; cursor:pointer; }
+.auth-tab.active{ background:var(--surface); color:var(--fg); box-shadow:0 4px 16px rgba(0,0,0,.16); }
+.auth-msg{ border-radius:13px; padding:10px 12px; margin-bottom:14px; font-size:12.5px; line-height:1.45; }
+.auth-msg.error{ color:var(--danger); background:color-mix(in oklab, var(--danger) 12%, transparent); border:1px solid color-mix(in oklab, var(--danger) 22%, transparent); }
+.auth-msg.success{ color:var(--success); background:color-mix(in oklab, var(--success) 12%, transparent); border:1px solid color-mix(in oklab, var(--success) 22%, transparent); }
+.auth-row{ display:flex; align-items:center; justify-content:space-between; gap:10px; margin-top:-6px; margin-bottom:14px; }
+.auth-link{ border:0; background:transparent; padding:0; color:var(--accent); font-size:12.5px; font-weight:700; cursor:pointer; }
+.auth-foot{ text-align:center; margin-top:16px; color:var(--faint); font-size:11.5px; line-height:1.5; }
+.auth-loading{ min-height:100dvh; display:grid; place-items:center; position:relative; z-index:20; }
+.auth-spinner{ width:34px; height:34px; border-radius:50%; border:3px solid var(--line-strong); border-top-color:var(--accent); animation:authspin .8s linear infinite; margin:0 auto 12px; }
+@keyframes authspin{ to{ transform:rotate(360deg);} }
+.account-row{ display:flex; align-items:center; justify-content:space-between; gap:12px; padding:10px 0; border-bottom:1px solid var(--line); }
+.account-row:last-child{ border-bottom:0; }
+
 </style>
 </head>
 <body>
@@ -270,8 +299,263 @@ svg.i{ width:1em; height:1em; stroke:currentColor; fill:none; stroke-width:2; st
 <div id="toasts"></div>
 <div id="sheet-root"></div>
 
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script>
 "use strict";
+
+/* =========================================================================
+   Authentication — Supabase email/password.
+   Replace the two public values below with your Supabase project values.
+   NEVER place a service_role key in this file.
+   ========================================================================= */
+const SUPABASE_URL = "https://tsrmthpmpgfgipklbglm.supabase.co";
+const SUPABASE_ANON_KEY = "sb_publishable_QPDkTEhDTgHTJbxqairAtw_UnBVRRru";
+const SUPABASE_CONFIGURED =
+  SUPABASE_URL.startsWith("https://") &&
+  !SUPABASE_URL.includes("YOUR_SUPABASE") &&
+  SUPABASE_ANON_KEY &&
+  !SUPABASE_ANON_KEY.includes("YOUR_SUPABASE");
+
+const SB = SUPABASE_CONFIGURED
+  ? window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
+      auth: { persistSession:true, autoRefreshToken:true, detectSessionInUrl:true }
+    })
+  : null;
+
+const AUTH = {
+  loading:true,
+  user:null,
+  session:null,
+  mode:"signin",
+  message:"",
+  messageType:"",
+  busy:false,
+};
+
+function authSetMessage(message, type){
+  AUTH.message = message || "";
+  AUTH.messageType = type || "";
+}
+
+function authUserName(){
+  const meta = AUTH.user && AUTH.user.user_metadata;
+  return (meta && (meta.name || meta.full_name)) || (AUTH.user && AUTH.user.email ? AUTH.user.email.split("@")[0] : "You");
+}
+
+function authScreenHTML(){
+  if(!SUPABASE_CONFIGURED){
+    return `<div class="auth-wrap">
+      <div class="auth-card">
+        <div class="auth-brand">
+          <span class="mark gradient-accent">${icon('shirt')}</span>
+          <h1>Fit<span class="text-gradient">Pick</span></h1>
+          <p>Your AI Stylist</p>
+        </div>
+        <div class="auth-msg error">
+          Supabase authentication is not configured yet. Open this HTML file and replace
+          <strong>YOUR_SUPABASE_URL</strong> and <strong>YOUR_SUPABASE_ANON_KEY</strong>
+          with your project's public values.
+        </div>
+        <p class="auth-foot">Use only the public anon/publishable key. Never use the service role key in browser code.</p>
+      </div>
+    </div>`;
+  }
+
+  if(AUTH.mode === "forgot"){
+    return `<div class="auth-wrap"><div class="auth-card">
+      ${authBrandHTML()}
+      <h2 style="font-size:18px;font-weight:800;margin-bottom:6px;">Reset password</h2>
+      <p class="small muted" style="line-height:1.55;margin-bottom:18px;">Enter your email and we'll send a password reset link.</p>
+      ${authMessageHTML()}
+      <form onsubmit="event.preventDefault(); requestPasswordReset(this);">
+        <div class="field"><label class="field-label">Email</label><input class="input" name="email" type="email" autocomplete="email" required placeholder="you@example.com"></div>
+        <button class="btn btn-primary btn-block btn-lg" ${AUTH.busy?'disabled':''}>${AUTH.busy?'Sending…':'Send reset link'}</button>
+      </form>
+      <button class="auth-link" style="margin-top:16px;" onclick="setAuthMode('signin')">← Back to sign in</button>
+    </div></div>`;
+  }
+
+  if(AUTH.mode === "update-password"){
+    return `<div class="auth-wrap"><div class="auth-card">
+      ${authBrandHTML()}
+      <h2 style="font-size:18px;font-weight:800;margin-bottom:6px;">Choose a new password</h2>
+      <p class="small muted" style="line-height:1.55;margin-bottom:18px;">Use at least 8 characters.</p>
+      ${authMessageHTML()}
+      <form onsubmit="event.preventDefault(); updateRecoveredPassword(this);">
+        <div class="field"><label class="field-label">New password</label><input class="input" name="password" type="password" minlength="8" autocomplete="new-password" required></div>
+        <div class="field"><label class="field-label">Confirm password</label><input class="input" name="confirmPassword" type="password" minlength="8" autocomplete="new-password" required></div>
+        <button class="btn btn-primary btn-block btn-lg" ${AUTH.busy?'disabled':''}>${AUTH.busy?'Updating…':'Update password'}</button>
+      </form>
+    </div></div>`;
+  }
+
+  const signup = AUTH.mode === "signup";
+  return `<div class="auth-wrap"><div class="auth-card">
+    ${authBrandHTML()}
+    <div class="auth-tabs">
+      <button class="auth-tab ${!signup?'active':''}" onclick="setAuthMode('signin')">Sign In</button>
+      <button class="auth-tab ${signup?'active':''}" onclick="setAuthMode('signup')">Create Account</button>
+    </div>
+    ${authMessageHTML()}
+    <form onsubmit="event.preventDefault(); ${signup?'signUpWithEmail(this)':'signInWithEmail(this)'}">
+      ${signup?`<div class="field"><label class="field-label">Name</label><input class="input" name="name" autocomplete="name" required placeholder="Your name"></div>`:''}
+      <div class="field"><label class="field-label">Email</label><input class="input" name="email" type="email" autocomplete="email" required placeholder="you@example.com"></div>
+      <div class="field"><label class="field-label">Password</label><input class="input" name="password" type="password" minlength="8" autocomplete="${signup?'new-password':'current-password'}" required placeholder="At least 8 characters"></div>
+      ${signup?`<div class="field"><label class="field-label">Confirm password</label><input class="input" name="confirmPassword" type="password" minlength="8" autocomplete="new-password" required></div>`:''}
+      ${!signup?`<div class="auth-row"><span></span><button type="button" class="auth-link" onclick="setAuthMode('forgot')">Forgot password?</button></div>`:''}
+      <button class="btn btn-primary btn-block btn-lg" ${AUTH.busy?'disabled':''}>${AUTH.busy?(signup?'Creating account…':'Signing in…'):(signup?'Create Account':'Sign In')}</button>
+    </form>
+    <p class="auth-foot">Your FitPick session is handled securely by Supabase Auth. Your wardrobe on this single-file version remains stored locally on this device, separated by account.</p>
+  </div></div>`;
+}
+
+function authBrandHTML(){
+  return `<div class="auth-brand">
+    <span class="mark gradient-accent">${icon('shirt')}</span>
+    <h1>Fit<span class="text-gradient">Pick</span></h1>
+    <p>Your wardrobe. Your style.</p>
+  </div>`;
+}
+
+function authMessageHTML(){
+  return AUTH.message ? `<div class="auth-msg ${AUTH.messageType==='success'?'success':'error'}">${esc(AUTH.message)}</div>` : "";
+}
+
+function setAuthMode(mode){
+  AUTH.mode = mode;
+  authSetMessage("");
+  render();
+}
+
+async function signInWithEmail(form){
+  if(!SB || AUTH.busy) return;
+  AUTH.busy = true; authSetMessage(""); render();
+  const email = form.email.value.trim();
+  const password = form.password.value;
+  const { error } = await SB.auth.signInWithPassword({ email, password });
+  AUTH.busy = false;
+  if(error){ authSetMessage("Could not sign in. Check your email and password.", "error"); render(); }
+}
+
+async function signUpWithEmail(form){
+  if(!SB || AUTH.busy) return;
+  const name = form.name.value.trim();
+  const email = form.email.value.trim();
+  const password = form.password.value;
+  const confirmPassword = form.confirmPassword.value;
+  if(password.length < 8){ authSetMessage("Password must be at least 8 characters.", "error"); render(); return; }
+  if(password !== confirmPassword){ authSetMessage("Passwords do not match.", "error"); render(); return; }
+  AUTH.busy = true; authSetMessage(""); render();
+  const { data, error } = await SB.auth.signUp({ email, password, options:{ data:{ name } } });
+  AUTH.busy = false;
+  if(error){ authSetMessage(error.message || "Could not create your account.", "error"); render(); return; }
+  if(data.session){
+    authSetMessage("");
+  }else{
+    AUTH.mode = "signin";
+    authSetMessage("Account created. Check your email to verify your account, then sign in.", "success");
+    render();
+  }
+}
+
+async function requestPasswordReset(form){
+  if(!SB || AUTH.busy) return;
+  AUTH.busy = true; authSetMessage(""); render();
+  const email = form.email.value.trim();
+  const redirectTo = location.href.split("#")[0];
+  const { error } = await SB.auth.resetPasswordForEmail(email, { redirectTo });
+  AUTH.busy = false;
+  if(error) authSetMessage("Could not send the reset email. Please try again.", "error");
+  else authSetMessage("If an account exists for that email, a password reset link has been sent.", "success");
+  render();
+}
+
+async function updateRecoveredPassword(form){
+  if(!SB || AUTH.busy) return;
+  const password = form.password.value;
+  const confirmPassword = form.confirmPassword.value;
+  if(password.length < 8){ authSetMessage("Password must be at least 8 characters.", "error"); render(); return; }
+  if(password !== confirmPassword){ authSetMessage("Passwords do not match.", "error"); render(); return; }
+  AUTH.busy = true; authSetMessage(""); render();
+  const { error } = await SB.auth.updateUser({ password });
+  AUTH.busy = false;
+  if(error){ authSetMessage("Could not update your password. Please request a new reset link.", "error"); render(); return; }
+  AUTH.mode = "signin";
+  authSetMessage("Password updated successfully.", "success");
+  render();
+}
+
+async function signOutFitPick(){
+  if(!SB) return;
+  await SB.auth.signOut();
+}
+
+function authLoadingHTML(){
+  return `<div class="auth-loading"><div style="text-align:center;">
+    <div class="auth-spinner"></div>
+    <p class="small muted">Loading your wardrobe…</p>
+  </div></div>`;
+}
+
+function setDBKeyForUser(user){
+  DB_KEY = user ? `fitpick_db_v1_${user.id}` : "fitpick_db_v1_guest";
+}
+
+function initializeUserDB(){
+  setDBKeyForUser(AUTH.user);
+  loadDB();
+  if(DB && DB.profile){
+    if(!DB.profile.name || DB.profile.name === "Alex" || DB.profile.name === "You") DB.profile.name = authUserName();
+    DB.profile.email = AUTH.user ? AUTH.user.email : "";
+    saveDB();
+  }
+  STATE.homeToday = null;
+  STATE.homeSurprise = null;
+  STATE.genResults = [];
+  STATE.genAnchorId = null;
+}
+
+async function initAuth(){
+  if(!SB){
+    AUTH.loading = false;
+    render();
+    return;
+  }
+  const { data:{ session }, error } = await SB.auth.getSession();
+  if(error) console.warn("Auth session check failed:", error.message);
+  AUTH.session = session || null;
+  AUTH.user = session && session.user ? session.user : null;
+  if(AUTH.user) initializeUserDB();
+  AUTH.loading = false;
+  render();
+
+  SB.auth.onAuthStateChange((event, sessionNow)=>{
+    AUTH.session = sessionNow || null;
+    AUTH.user = sessionNow && sessionNow.user ? sessionNow.user : null;
+    AUTH.busy = false;
+    if(event === "PASSWORD_RECOVERY"){
+      AUTH.mode = "update-password";
+      AUTH.loading = false;
+      render();
+      return;
+    }
+    if(AUTH.user){
+      initializeUserDB();
+      AUTH.mode = "signin";
+      authSetMessage("");
+      if(!location.hash || location.hash.startsWith("#/auth")) location.hash = "#/home";
+    }else{
+      DB = null;
+      setDBKeyForUser(null);
+      AUTH.mode = "signin";
+      authSetMessage("");
+      if(location.hash && !location.hash.startsWith("#/auth")) location.hash = "#/auth";
+    }
+    AUTH.loading = false;
+    render();
+  });
+}
+
 /* =========================================================================
    FitPick — client-only AI wardrobe stylist
    Ported from the FitPick Next.js product (taxonomy, color engine, outfit
@@ -854,11 +1138,11 @@ function placeholderImage(category, primaryColorId, secondaryColorId){
 /* =========================================================================
    Persistence — everything lives in localStorage. One JSON blob, versioned.
    ========================================================================= */
-const DB_KEY = 'fitpick_db_v1';
+let DB_KEY = 'fitpick_db_v1_guest';
 function freshDB(){
   return {
     items: [], outfits: [], wear: [],
-    profile: { name:'Alex', preferredStyle:'', preferences:{ favoriteColors:[], favoriteStyles:[], avoidColors:[], preferredFit:'' }, theme:'dark' },
+    profile: { name:(typeof AUTH!=='undefined' && AUTH.user ? authUserName() : 'You'), email:(typeof AUTH!=='undefined' && AUTH.user ? AUTH.user.email : ''), preferredStyle:'', preferences:{ favoriteColors:[], favoriteStyles:[], avoidColors:[], preferredFit:'' }, theme:'dark' },
   };
 }
 let DB = null;
@@ -1065,6 +1349,16 @@ function toggleTheme(){
 }
 
 function render(){
+  const appHost = document.getElementById('app');
+  if(!appHost) return;
+  if(AUTH.loading){
+    appHost.innerHTML = authLoadingHTML();
+    return;
+  }
+  if(!AUTH.user){
+    appHost.innerHTML = authScreenHTML();
+    return;
+  }
   const { name, arg, params } = currentRoute();
   document.documentElement.dataset.theme = DB.profile.theme || 'dark';
   let inner = '';
@@ -2015,13 +2309,20 @@ function renderProfile(){
   </div>`:''}
 
   <div class="card mt-4">
+    <div class="section-title"><h2>Account</h2></div>
+    <div class="account-row"><span class="small muted">Name</span><span class="small bold">${esc(p.name||authUserName())}</span></div>
+    <div class="account-row"><span class="small muted">Email</span><span class="small bold" style="text-align:right;word-break:break-all;">${esc((AUTH.user&&AUTH.user.email)||'')}</span></div>
+    <button class="btn btn-danger btn-block mt-4" onclick="signOutFitPick()">Sign Out</button>
+  </div>
+
+  <div class="card mt-4">
     <div class="section-title"><h2>Appearance</h2></div>
     <button class="btn btn-secondary btn-block" onclick="toggleTheme()">${icon(p.theme==='light'?'moon':'sun')} Switch to ${p.theme==='light'?'dark':'light'} mode</button>
   </div>
 
   <div class="card mt-4">
     <div class="section-title"><h2>Data</h2></div>
-    <p class="small muted" style="margin-bottom:12px;">Everything is stored only in this browser \u2014 nothing is uploaded anywhere.</p>
+    <p class="small muted" style="margin-bottom:12px;">Wardrobe data in this single-file build is stored only in this browser and separated by signed-in account.</p>
     ${!summary.total? `<button class="btn btn-secondary btn-block" style="margin-bottom:10px;" onclick="loadSamples()">Load sample wardrobe</button>`:''}
     <button class="btn btn-danger btn-block" onclick="clearAllDataConfirm()">${icon('trash')} Clear all data</button>
   </div>
@@ -2031,11 +2332,10 @@ function renderProfile(){
 /* =========================================================================
    Init
    ========================================================================= */
-function init(){
-  loadDB();
-  document.documentElement.dataset.theme = DB.profile.theme || 'dark';
-  if(!location.hash) location.hash = '#/home';
-  render();
+async function init(){
+  document.documentElement.dataset.theme = 'dark';
+  if(!location.hash) location.hash = '#/auth';
+  await initAuth();
 }
 document.addEventListener('DOMContentLoaded', init);
 </script>
