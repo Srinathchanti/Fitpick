@@ -1,4 +1,28 @@
 <!doctype html>
+
+<!--
+FITPICK SINGLE-FILE BUILD
+
+This HTML contains:
+- Supabase Auth
+- Per-user cloud sync
+- Supabase Storage clothing uploads
+- Closet / outfits / wear history / profile
+- AI clothing recognition UI + Supabase Function call
+- Manual fallback if AI analysis is unavailable
+
+IMPORTANT SECURITY NOTE:
+The OpenAI API key must NOT be placed inside this HTML.
+For secure AI recognition, deploy a Supabase Edge Function named:
+  analyze-clothing
+
+The HTML already invokes:
+  SB.functions.invoke("analyze-clothing", ...)
+
+If the Edge Function is not configured, FitPick automatically falls back to
+manual category selection so the rest of the app still works.
+-->
+
 <html lang="en" data-theme="dark">
 <head>
 <meta charset="UTF-8" />
@@ -1122,6 +1146,91 @@ function buildInsights(items){
   return out.slice(0,5);
 }
 
+
+/* =========================================================================
+   Real AI clothing analysis
+   -------------------------------------------------------------------------
+   Calls an authenticated Supabase Edge Function so no AI secret is exposed
+   in this HTML file. The Edge Function returns structured garment metadata.
+   ========================================================================= */
+const AI_FUNCTION_NAME = "analyze-clothing";
+
+function sanitizeAIAnalysis(raw){
+  if(!raw || typeof raw !== "object") throw new Error("Invalid AI response");
+
+  const cat = CATEGORY_IDS.includes(raw.category) ? raw.category : null;
+  if(!cat) throw new Error("AI could not identify a supported clothing category");
+
+  const subs = subcategoriesOf(cat);
+  const sub = subs.includes(String(raw.subcategory||"").toLowerCase())
+    ? String(raw.subcategory).toLowerCase()
+    : subs[0];
+
+  const primary = COLOR_IDS.includes(String(raw.primaryColor||"").toLowerCase())
+    ? String(raw.primaryColor).toLowerCase()
+    : "grey";
+
+  const secondaryRaw = raw.secondaryColor ? String(raw.secondaryColor).toLowerCase() : null;
+  const secondary = secondaryRaw && COLOR_IDS.includes(secondaryRaw) ? secondaryRaw : null;
+
+  const pattern = PATTERN_IDS.includes(String(raw.pattern||"").toLowerCase())
+    ? String(raw.pattern).toLowerCase()
+    : "solid";
+
+  const materialRaw = raw.material ? String(raw.material).toLowerCase() : null;
+  const material = materialRaw && MATERIAL_IDS.includes(materialRaw) ? materialRaw : null;
+
+  const fitRaw = raw.fit ? String(raw.fit).toLowerCase() : null;
+  const fit = fitRaw && FIT_IDS.includes(fitRaw) ? fitRaw : null;
+
+  const styles = Array.isArray(raw.styles)
+    ? raw.styles.map(x=>String(x).toLowerCase()).filter(x=>STYLE_IDS.includes(x)).slice(0,4)
+    : [];
+
+  const seasons = Array.isArray(raw.seasons)
+    ? raw.seasons.map(x=>String(x).toLowerCase()).filter(x=>SEASON_IDS.includes(x)).slice(0,4)
+    : [];
+
+  const occasions = Array.isArray(raw.occasions)
+    ? raw.occasions.map(x=>String(x).toLowerCase()).filter(x=>OCCASION_IDS.includes(x)).slice(0,6)
+    : [];
+
+  const formality = clamp(Number(raw.formalityLevel)||defaultFormality(sub,cat), 1, 6);
+  const confidence = clamp(Number(raw.confidence)||0.75, 0, 1);
+
+  return {
+    name: String(raw.name||`${cap(primary)} ${cap(sub)}`).slice(0,80),
+    category: cat,
+    subcategory: sub,
+    primaryColor: primary,
+    secondaryColor: secondary,
+    pattern,
+    material,
+    fit,
+    formalityLevel: Math.round(formality),
+    styles: styles.length ? styles : ["casual"],
+    seasons: seasons.length ? seasons : SEASON_IDS.slice(0,3),
+    occasions: occasions.length ? occasions : ["casual"],
+    confidence,
+    aiSource: "vision"
+  };
+}
+
+async function analyzeClothingWithAI(imageDataUrl){
+  if(!AUTH.user) throw new Error("Please sign in first");
+  if(!imageDataUrl) throw new Error("No clothing photo supplied");
+
+  const { data, error } = await SB.functions.invoke(AI_FUNCTION_NAME, {
+    body: { imageDataUrl }
+  });
+
+  if(error) throw error;
+  if(!data || data.error) throw new Error((data && data.error) || "AI analysis failed");
+
+  return sanitizeAIAnalysis(data.analysis || data);
+}
+
+
 /* ---------------------------------------------------------------------- *
  * Heuristic "AI" analysis — deterministic mock provider driven by the
  * photo's sampled dominant color + the chosen category/subcategory, same
@@ -1462,7 +1571,7 @@ const STATE = {
   homeOccasion: null, homeLook: null, homeToday: null, homeLoading:false, homeMissing:[], homeSurprise:null,
   genOccasion:null, genStyle:null, genWeather:null, genAnchorId:null, genResults:[], genMissing:[], genExpanded:{},
   closetCategory:'all', closetQuery:'', closetSort:'recent',
-  addPhoto:null, addAnalysis:null, addStream:null,
+  addPhoto:null, addAnalysis:null, addStream:null, addAiStatus:null, addAiError:null,
 };
 
 /* =========================================================================
@@ -1977,20 +2086,51 @@ function pickSwatch(el){
 /* =========================================================================
    Add-item flow: photo -> category/subcategory -> AI-heuristic review
    ========================================================================= */
-function resetAddFlow(){ STATE.addPhoto=null; STATE.addStep='photo'; STATE.addCategory=null; STATE.addSubcategory=null; STATE.addAnalysis=null; }
+function resetAddFlow(){ STATE.addPhoto=null; STATE.addStep='photo'; STATE.addCategory=null; STATE.addSubcategory=null; STATE.addAnalysis=null; STATE.addAiStatus=null; STATE.addAiError=null; }
 function initAddScreen(){ if(!STATE.addStep) resetAddFlow(); }
 
 async function handleAddFile(input){
   const file = input.files && input.files[0];
   if(!file) return;
-  toast('Processing photo\u2026');
+
+  STATE.addAiError = null;
+  toast('Preparing photo…');
+
   try{
     const processed = await processClothingImage(file);
     STATE.addPhoto = processed;
-    STATE.addStep = 'category';
+    STATE.addAiStatus = 'analyzing';
+    STATE.addStep = 'analyzing';
     render();
-  }catch(e){ toast('Could not read that photo'); }
+
+    try{
+      const analysis = await analyzeClothingWithAI(processed.dataUrl);
+      STATE.addAnalysis = analysis;
+      STATE.addCategory = analysis.category;
+      STATE.addSubcategory = analysis.subcategory;
+      STATE.addAiStatus = 'done';
+      STATE.addStep = 'review';
+      render();
+    }catch(aiErr){
+      console.warn('AI clothing analysis unavailable:', aiErr);
+      STATE.addAiStatus = 'fallback';
+      STATE.addAiError = aiErr && aiErr.message ? aiErr.message : 'AI analysis unavailable';
+      STATE.addStep = 'category';
+      toast('AI analysis unavailable — choose the item type manually');
+      render();
+    }
+  }catch(e){
+    console.warn(e);
+    toast('Could not read that photo');
+  }
 }
+function choosePhotoManual(){
+  if(!STATE.addPhoto) return;
+  STATE.addAiStatus = 'manual';
+  STATE.addStep = 'category';
+  render();
+}
+
 function useNoPhoto(){
   STATE.addPhoto = { dataUrl:null, dominantColor:'grey' };
   STATE.addStep = 'category';
@@ -2026,7 +2166,7 @@ async function saveNewItem(){
     seasons: Array.from(f.querySelectorAll('[data-seasons]:checked')).map(x=>x.value),
     occasions: Array.from(f.querySelectorAll('[data-occasions]:checked')).map(x=>x.value),
     brand: f.brand.value.trim() || null, status:'clean', notes: f.notes.value.trim() || null,
-    timesWorn:0, lastWorn:null, isFavorite:false, createdAt: new Date().toISOString(),
+    timesWorn:0, lastWorn:null, isFavorite:false, aiSource: STATE.addAnalysis && STATE.addAnalysis.aiSource || null, aiConfidence: STATE.addAnalysis && STATE.addAnalysis.confidence != null ? STATE.addAnalysis.confidence : null, createdAt: new Date().toISOString(),
   };
   DB.items.push(item);
   saveDB();
@@ -2036,8 +2176,26 @@ async function saveNewItem(){
   SAVING_NEW_ITEM = false;
 }
 
+
+function renderAddAnalyzingStep(){
+  const photo = STATE.addPhoto;
+  return `
+  <button class="btn btn-ghost btn-sm" style="padding-left:0;margin-bottom:10px;" onclick="resetAddFlow(); render();">${icon('x')} Cancel</button>
+  <div style="text-align:center;padding-top:12px;">
+    ${photo && photo.dataUrl ? `<div class="item-thumb" style="aspect-ratio:1/1;max-width:260px;margin:0 auto 22px;border-radius:24px;"><img src="${photo.dataUrl}" alt="Clothing photo"></div>` : ''}
+    <div class="card" style="max-width:420px;margin:0 auto;">
+      <div style="width:44px;height:44px;border-radius:15px;margin:0 auto 14px;background:var(--surface2);display:grid;place-items:center;color:var(--accent);">${icon('sparkles')}</div>
+      <h2 style="font-size:18px;font-weight:800;">Analyzing your clothing</h2>
+      <p class="small muted mt-2" style="line-height:1.55;">FitPick is identifying the item type, colors, pattern, material, style, formality, seasons and occasions.</p>
+      <div class="skel" style="height:8px;margin-top:18px;border-radius:99px;"></div>
+      <button class="btn btn-ghost btn-sm mt-4" onclick="choosePhotoManual()">Enter details manually instead</button>
+    </div>
+  </div>`;
+}
+
 function renderAdd(){
   if(!STATE.addStep) resetAddFlow();
+  if(STATE.addStep==='analyzing') return renderAddAnalyzingStep();
   if(STATE.addStep==='category') return renderAddCategoryStep();
   if(STATE.addStep==='review') return renderAddReviewStep();
   return renderAddPhotoStep();
@@ -2051,7 +2209,7 @@ function renderAddPhotoStep(){
     <input type="file" accept="image/*" capture="environment" style="display:none;" onchange="handleAddFile(this)">
     <div style="color:var(--accent);margin-bottom:10px;">${icon('camera')}</div>
     <p class="bold small">Take a photo</p>
-    <p class="tiny muted mt-2">Use your camera</p>
+    <p class="tiny muted mt-2">AI identifies the clothing automatically</p>
   </label>
   <label class="dropzone" style="display:block;">
     <input type="file" accept="image/*" style="display:none;" onchange="handleAddFile(this)">
@@ -2067,6 +2225,7 @@ function renderAddCategoryStep(){
   return `
   <button class="btn btn-ghost btn-sm" style="padding-left:0;margin-bottom:10px;" onclick="backToPhotoStep()">${icon('chevRight')} Back</button>
   ${photo.dataUrl? `<div class="item-thumb" style="aspect-ratio:1/1;max-width:220px;margin:0 auto 20px;border-radius:20px;"><img src="${photo.dataUrl}"></div>`:''}
+  ${STATE.addAiError ? `<div class="card" style="padding:12px 14px;margin-bottom:14px;border-color:color-mix(in oklab,var(--warn) 35%,var(--line));"><p class="tiny" style="color:var(--warn);">${icon('info')} AI could not finish this photo. You can still add it manually.</p></div>` : ''}
   <h2 style="font-size:17px;font-weight:800;margin-bottom:14px;text-align:center;">What kind of item is this?</h2>
   <div class="grid-cats" style="margin-bottom:22px;">
     ${CATEGORIES.map(c=>`<button class="cat-btn ${STATE.addCategory===c.id?'active':''}" onclick="chooseAddCategory('${c.id}')">${icon(c.icon)}<span>${c.label}</span></button>`).join('')}
@@ -2089,8 +2248,17 @@ function renderAddReviewStep(){
       <img src="${STATE.addPhoto.dataUrl || placeholderImage(STATE.addCategory, a.primaryColor)}">
     </div>
     <div>
-      <h1 style="font-size:18px;font-weight:800;">Review details</h1>
-      <p class="tiny muted mt-2">FitPick guessed these from the photo \u2014 tweak anything that's off.</p>
+      <div class="row wrap" style="gap:8px;">
+        <h1 style="font-size:18px;font-weight:800;">Review details</h1>
+        ${a.aiSource==='vision'
+          ? `<span class="badge badge-accent">${icon('sparkles')} AI detected</span>`
+          : `<span class="badge badge-neutral">Manual review</span>`}
+      </div>
+      <p class="tiny muted mt-2">${
+        a.aiSource==='vision'
+          ? `FitPick analyzed this photo${a.confidence!=null ? ` · ${Math.round(a.confidence*100)}% confidence` : ''}. Confirm anything that looks off.`
+          : `Review the suggested details and tweak anything that's off.`
+      }</p>
     </div>
   </div>
   <form id="add-review-form" onsubmit="event.preventDefault(); saveNewItem();">
